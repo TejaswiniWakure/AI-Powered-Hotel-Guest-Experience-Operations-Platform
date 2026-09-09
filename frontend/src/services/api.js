@@ -1,0 +1,20 @@
+const API_URL = 'http://localhost:5001/api';
+
+export const api = {
+  // We'll add auth token headers here later
+  async get(endpoint) {
+    const res = await fetch(`${API_URL}${endpoint}`);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
+  
+  async post(endpoint, data) {
+    const res = await fetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+};
