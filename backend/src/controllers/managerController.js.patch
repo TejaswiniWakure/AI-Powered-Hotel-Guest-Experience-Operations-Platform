@@ -1,0 +1,188 @@
+--- backend/src/controllers/managerController.js
++++ backend/src/controllers/managerController.js
+@@ -290,88 +290,87 @@
+ 
+ // GET /api/manager/analytics
+ exports.getAnalytics = async (req, res) => {
+   try {
+     const hotelId = req.user.hotelId;
++    const { range = '7d' } = req.query;
+ 
+-    // 1. Requests by day (last 7 days)
+-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+-    const requestsLast7Days = await Request.find({ hotelId, createdAt: { $gte: sevenDaysAgo } });
+-    
+-    const dayMap = {};
+-    for (let i = 6; i >= 0; i--) {
+-      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+-      const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+-      dayMap[dayName] = { day: dayName, requests: 0, resolved: 0 };
+-    }
+-
+-    requestsLast7Days.forEach(r => {
+-      const dayName = new Date(r.createdAt).toLocaleDateString('en-US', { weekday: 'short' });
+-      if (dayMap[dayName]) {
+-        dayMap[dayName].requests += 1;
+-        if (r.status === 'completed') dayMap[dayName].resolved += 1;
+-      }
+-    });
+-
+-    const requestsByDay = Object.values(dayMap);
+-
+-    // 2. Requests by Department
+-    const deptAgg = await Request.aggregate([
+-      { $match: { hotelId } },
+-      { $group: { _id: '$department', count: { $sum: 1 } } }
+-    ]);
+-    const byDepartment = deptAgg.map(d => ({ name: d._id || 'General', count: d.count }));
+-
+-    // 3. Requests by Category
+-    const catAgg = await Request.aggregate([
+-      { $match: { hotelId } },
+-      { $group: { _id: '$category', count: { $sum: 1 } } },
+-      { $sort: { count: -1 } },
+-      { $limit: 6 }
+-    ]);
+-    const byCategory = catAgg.map(c => ({ name: c._id, count: c.count }));
+-
+-    // 4. Requests by Floor
+-    const byFloor = [
+-      { floor: 'Floor 1', count: 0 },
+-      { floor: 'Floor 2', count: 0 },
+-      { floor: 'Floor 3', count: 0 },
+-      { floor: 'Floor 4', count: 0 },
+-      { floor: 'Floor 5', count: 0 }
+-    ];
+-    const allRequests = await Request.find({ hotelId }).select('roomNumber');
+-    allRequests.forEach(r => {
+-      if (r.roomNumber && /^\d+$/.test(r.roomNumber)) {
+-        const fl = parseInt(r.roomNumber[0], 10);
+-        if (fl >= 1 && fl <= 5) byFloor[fl - 1].count += 1;
+-      }
+-    });
+-
+-    // 5. Peak Hours Distribution
+-    const peakHours = [
+-      { hour: '08:00', count: 8 },
+-      { hour: '11:00', count: 18 },
+-      { hour: '14:00', count: 14 },
+-      { hour: '17:00', count: 22 },
+-      { hour: '20:00', count: 26 },
+-      { hour: '23:00', count: 10 }
+-    ];
+-
+-    // 6. Guest Rating Breakdown
+-    const feedbackList = await Feedback.find({ hotelId }).select('rating');
+-    const ratingBreakdown = [
+-      { stars: '5 Stars', count: feedbackList.filter(f => f.rating === 5).length || 24 },
+-      { stars: '4 Stars', count: feedbackList.filter(f => f.rating === 4).length || 8 },
+-      { stars: '3 Stars', count: feedbackList.filter(f => f.rating === 3).length || 2 },
+-      { stars: '2 Stars', count: feedbackList.filter(f => f.rating === 2).length || 1 },
+-      { stars: '1 Star', count: feedbackList.filter(f => f.rating === 1).length || 0 }
+-    ];
++    let days = 7;
++    if (range === '30d' || range === 'month') days = 30;
++    
++    const startDate = new Date();
++    startDate.setDate(startDate.getDate() - days);
++    startDate.setHours(0,0,0,0);
++
++    const feedbacks = await Feedback.find({ hotelId, createdAt: { $gte: startDate } });
++    let happyGuestPercentage = null;
++    if (feedbacks.length > 0) {
++      const happyCount = feedbacks.filter(f => f.rating >= 4).length;
++      happyGuestPercentage = Math.round((happyCount / feedbacks.length) * 100);
++    }
++
++    const completedTasks = await Task.find({ 
++      hotelId, 
++      status: TASK_STATUS.COMPLETED,
++      completedAt: { $gte: startDate }
++    });
++    let onTimeCompletionRate = null;
++    if (completedTasks.length > 0) {
++      const onTimeCount = completedTasks.filter(t => (t.resolutionTime || 0) <= (t.slaMinutes || 60)).length;
++      onTimeCompletionRate = Math.round((onTimeCount / completedTasks.length) * 100);
++    }
++
++    const requests = await Request.find({ hotelId, createdAt: { $gte: startDate } });
++    let repeatProblemRate = null;
++    let repeatCount = 0;
++    if (requests.length > 0) {
++      const roomCatMap = {};
++      requests.forEach(r => {
++        if (!r.roomNumber || !r.category) return;
++        const key = `${r.roomNumber}-${r.category}`;
++        roomCatMap[key] = (roomCatMap[key] || 0) + 1;
++      });
++      let repeatedRequests = 0;
++      Object.values(roomCatMap).forEach(count => {
++        if (count > 1) {
++          repeatedRequests += (count - 1);
++          repeatCount++;
++        }
++      });
++      if(repeatedRequests > 0) repeatProblemRate = Math.round((repeatedRequests / requests.length) * 100);
++      else repeatProblemRate = 0;
++    }
++
++    let busiestHour = null;
++    let busiestCount = 0;
++    if (requests.length > 0) {
++      const hours = new Array(24).fill(0);
++      requests.forEach(r => { hours[new Date(r.createdAt).getHours()]++; });
++      const maxRequests = Math.max(...hours);
++      if (maxRequests > 0) {
++        const peakHour = hours.indexOf(maxRequests);
++        const ampm = peakHour >= 12 ? 'PM' : 'AM';
++        const hour12 = peakHour % 12 || 12;
++        const nextHour12 = (peakHour + 1) % 12 || 12;
++        const nextAmpm = (peakHour + 1) >= 12 && (peakHour + 1) < 24 ? 'PM' : 'AM';
++        busiestHour = `${hour12} ${ampm} – ${nextHour12} ${nextAmpm}`;
++        busiestCount = maxRequests;
++      }
++    }
++
++    const dayMap = {};
++    for (let i = days - 1; i >= 0; i--) {
++      const d = new Date();
++      d.setDate(d.getDate() - i);
++      const key = days > 7 ? `${d.getMonth()+1}/${d.getDate()}` : d.toLocaleDateString('en-US', { weekday: 'short' });
++      dayMap[key] = 0;
++    }
++    requests.forEach(r => {
++      const d = new Date(r.createdAt);
++      const key = days > 7 ? `${d.getMonth()+1}/${d.getDate()}` : d.toLocaleDateString('en-US', { weekday: 'short' });
++      if (dayMap[key] !== undefined) dayMap[key]++;
++    });
++    const requestActivity = Object.keys(dayMap).map(k => ({ label: k, value: dayMap[k] }));
++
++    let operationalInsight = "No operational insights available yet.";
++    if (requests.length > 0) {
++      const deptCounts = {};
++      requests.forEach(r => { deptCounts[r.department || 'General'] = (deptCounts[r.department || 'General'] || 0) + 1; });
++      const topDept = Object.keys(deptCounts).reduce((a, b) => deptCounts[a] > deptCounts[b] ? a : b, '');
++      if (repeatCount > 0) operationalInsight = `Repeat issues were detected in ${repeatCount} rooms.`;
++      else if (busiestHour) operationalInsight = `Most guest requests are received between ${busiestHour}.`;
++      else if (topDept) operationalInsight = `${topDept} received the highest number of requests in this period.`;
++    }
+ 
+     return successResponse(res, {
+-      requestsByDay,
+-      byDepartment,
+-      byCategory,
+-      byFloor,
+-      peakHours,
+-      ratingBreakdown
++      happyGuestPercentage,
++      onTimeCompletionRate,
++      repeatProblemRate,
++      repeatCount,
++      busiestHour,
++      busiestCount,
++      requestActivity,
++      operationalInsight,
++      hasData: requests.length > 0 || feedbacks.length > 0 || completedTasks.length > 0
+     });
+   } catch (error) {
+     return errorResponse(res, error.message);

@@ -1,101 +1,205 @@
-import React, { useState } from 'react';
-import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
-import { Button } from '../../components/ui/Button';
-import { LayoutList, LayoutGrid, Search, Filter, CheckSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { 
+  CheckSquare, Clock, Filter, Search, ChevronRight, 
+  Play, CheckCircle2, AlertTriangle, ArrowUpRight 
+} from 'lucide-react';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
+import { api } from '../../services/api';
+import SLAIndicator from '../../components/shared/SLAIndicator';
+import PriorityBadge from '../../components/shared/PriorityBadge';
+import StatusBadge from '../../components/shared/StatusBadge';
+import EmptyState from '../../components/shared/EmptyState';
 
 export default function StaffTasks() {
-  const [view, setView] = useState('kanban'); // 'list' | 'kanban'
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [scope, setScope] = useState('mine');
 
-  const tasks = [];
+  const fetchTasks = () => {
+    api.get('/staff/tasks', {
+      status: statusFilter,
+      priority: priorityFilter,
+      scope
+    })
+      .then(data => {
+        if (Array.isArray(data)) setTasks(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
 
-  const columns = ['New', 'In Progress', 'Completed'];
+  useEffect(() => {
+    fetchTasks();
+  }, [statusFilter, priorityFilter, scope]);
+
+  const handleQuickAction = async (taskId, action) => {
+    try {
+      await api.patch(`/staff/tasks/${taskId}/${action}`);
+      fetchTasks();
+    } catch (err) {
+      alert(`Action ${action} failed: ` + err.message);
+    }
+  };
+
+  const filteredTasks = tasks.filter(t => {
+    if (!search) return true;
+    const term = search.toLowerCase();
+    return t.roomNumber?.toLowerCase().includes(term) ||
+           t.category?.toLowerCase().includes(term) ||
+           t.description?.toLowerCase().includes(term);
+  });
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-3xl font-bold text-primary">My Tasks</h1>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input type="text" placeholder="Search tasks..." className="pl-9 pr-4 py-2 text-sm border border-border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-          <Button variant="outline" size="icon"><Filter size={16} /></Button>
-          <div className="border border-border rounded-md flex bg-white ml-2 p-0.5">
-            <button onClick={() => setView('kanban')} className={`p-1.5 rounded ${view === 'kanban' ? 'bg-secondary-bg text-primary' : 'text-text-muted'}`}><LayoutGrid size={16} /></button>
-            <button onClick={() => setView('list')} className={`p-1.5 rounded ${view === 'list' ? 'bg-secondary-bg text-primary' : 'text-text-muted'}`}><LayoutList size={16} /></button>
-          </div>
+    <div>
+      {/* Header */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-primary font-serif">Task Management Workspace</h1>
+          <p className="text-text-muted text-sm mt-1">Execute, update, and resolve assigned hotel work orders within SLA.</p>
+        </div>
+
+        {/* Scope Toggle */}
+        <div className="flex bg-white p-1 rounded-xl border border-border shadow-xs">
+          <button
+            onClick={() => setScope('mine')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              scope === 'mine' ? 'bg-primary text-white' : 'text-text-muted hover:text-primary'
+            }`}
+          >
+            My Assigned Tasks
+          </button>
+          <button
+            onClick={() => setScope('all')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              scope === 'all' ? 'bg-primary text-white' : 'text-text-muted hover:text-primary'
+            }`}
+          >
+            All Department Tasks
+          </button>
         </div>
       </div>
 
-      {tasks.length === 0 ? (
-        <Card className="p-12 text-center flex-1 flex flex-col items-center justify-center bg-secondary-bg/30 border-dashed">
-          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm border border-border">
-            <CheckSquare size={32} className="text-primary/40" />
-          </div>
-          <h3 className="text-xl font-bold text-primary mb-2">No tasks assigned</h3>
-          <p className="text-text-muted max-w-md">You currently have no tasks assigned to you. When new requests come in for your department, they will appear here.</p>
-        </Card>
-      ) : view === 'kanban' ? (
-        <div className="grid md:grid-cols-3 gap-6 flex-1 overflow-hidden">
-          {columns.map(col => (
-            <div key={col} className="bg-secondary-bg/50 rounded-xl p-4 flex flex-col h-full border border-border">
-              <h3 className="font-semibold text-primary mb-4 flex justify-between items-center">
-                {col} 
-                <span className="bg-white px-2 py-0.5 rounded-full text-xs border border-border">{tasks.filter(t => t.status === col).length}</span>
-              </h3>
-              <div className="space-y-3 overflow-y-auto flex-1 pr-1 pb-4">
-                {tasks.filter(t => t.status === col).map(task => (
-                  <Link key={task.id} to={`/staff/tasks/${task.id}`}>
-                    <Card className={`p-3 cursor-pointer hover:border-primary transition-colors border-l-4 ${task.priority === 'High' ? 'border-l-critical' : task.priority === 'Medium' ? 'border-l-medium' : 'border-l-success'}`}>
-                      <div className="flex justify-between items-start mb-2">
-                        <Badge variant={task.priority === 'High' ? 'danger' : 'outline'} className="text-[10px] py-0">{task.priority}</Badge>
-                        <span className="text-[10px] text-text-muted">{task.id}</span>
-                      </div>
-                      <h4 className="font-bold text-primary text-sm mb-1">{task.issue}</h4>
-                      <p className="text-xs text-text-muted mb-3">Room {task.room}</p>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className={`font-medium ${task.priority === 'High' ? 'text-critical' : 'text-text-muted'}`}>SLA: {task.sla}</span>
-                        <div className="w-6 h-6 rounded-full bg-secondary-bg flex items-center justify-center text-primary font-bold">R</div>
-                      </div>
-                    </Card>
-                  </Link>
-                ))}
+      {/* Filter Bar */}
+      <Card className="p-4 mb-6 bg-white">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by room, category, or keyword..."
+            className="text-xs"
+          />
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-xs p-2.5 rounded-xl border border-border bg-white text-primary focus:outline-none focus:border-primary"
+          >
+            <option value="all">All Statuses</option>
+            <option value="assigned">Assigned</option>
+            <option value="accepted">Accepted</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="escalated">Escalated</option>
+          </select>
+
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="text-xs p-2.5 rounded-xl border border-border bg-white text-primary focus:outline-none focus:border-primary"
+          >
+            <option value="all">All Priorities</option>
+            <option value="Critical">Critical</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+        </div>
+      </Card>
+
+      {/* Tasks Table / Cards */}
+      {loading ? (
+        <div className="p-12 text-center text-xs text-text-muted bg-white rounded-xl border border-border">
+          Loading tasks...
+        </div>
+      ) : filteredTasks.length === 0 ? (
+        <EmptyState
+          icon={CheckSquare}
+          title="No tasks match criteria"
+          description="There are no tasks matching your selected filters."
+          actionLabel="Reset Filters"
+          onAction={() => { setStatusFilter('all'); setPriorityFilter('all'); setSearch(''); }}
+        />
+      ) : (
+        <div className="space-y-3.5">
+          {filteredTasks.map(task => (
+            <Card key={task._id} className="p-5 hover:border-primary hover:shadow-md transition-all">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-base shrink-0 shadow-xs">
+                    {task.roomNumber}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <span className="text-xs font-bold text-primary">{task.category}</span>
+                      <PriorityBadge priority={task.priority} />
+                      <StatusBadge status={task.status} />
+                      <span className="text-[11px] text-text-muted">
+                        Task #{task._id?.slice(-5).toUpperCase()}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-muted leading-relaxed line-clamp-2">{task.description}</p>
+                    
+                    {task.assignmentReason && (
+                      <p className="text-[11px] text-accent mt-1 font-medium">
+                        ✦ {task.assignmentReason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 pt-3 lg:pt-0 border-t lg:border-t-0 border-border justify-between lg:justify-end">
+                  <SLAIndicator slaDeadline={task.slaDeadline} slaMinutes={task.slaMinutes} status={task.status} />
+
+                  {/* Workflow Quick Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    {task.status === 'assigned' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleQuickAction(task._id, 'accept')}
+                        className="bg-accent text-primary hover:bg-accent-light font-bold text-xs"
+                      >
+                        Accept
+                      </Button>
+                    )}
+
+                    {task.status === 'accepted' && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleQuickAction(task._id, 'start')}
+                        className="bg-primary text-accent hover:bg-primary-hover font-bold text-xs"
+                      >
+                        <Play size={12} className="mr-1" /> Start Work
+                      </Button>
+                    )}
+
+                    <Link to={`/staff/tasks/${task._id}`}>
+                      <Button size="sm" variant="outline" className="text-xs font-bold gap-1">
+                        Details <ArrowUpRight size={14} />
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
-      ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-text-muted bg-secondary-bg uppercase border-b border-border">
-                <tr>
-                  <th className="px-6 py-3 font-semibold">Task</th>
-                  <th className="px-6 py-3 font-semibold">Room</th>
-                  <th className="px-6 py-3 font-semibold">Priority</th>
-                  <th className="px-6 py-3 font-semibold">Status</th>
-                  <th className="px-6 py-3 font-semibold">SLA</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map(task => (
-                  <tr key={task.id} className="border-b border-border hover:bg-secondary-bg/50">
-                    <td className="px-6 py-4 font-medium text-primary">
-                      <Link to={`/staff/tasks/${task.id}`} className="hover:underline">{task.issue}</Link>
-                      <div className="text-text-muted text-xs font-normal">{task.id}</div>
-                    </td>
-                    <td className="px-6 py-4 font-semibold">{task.room}</td>
-                    <td className="px-6 py-4"><Badge variant={task.priority === 'High' ? 'danger' : 'outline'}>{task.priority}</Badge></td>
-                    <td className="px-6 py-4"><Badge variant={task.status === 'Completed' ? 'success' : 'secondary'}>{task.status}</Badge></td>
-                    <td className="px-6 py-4 font-medium text-critical">{task.sla}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
       )}
     </div>
   );

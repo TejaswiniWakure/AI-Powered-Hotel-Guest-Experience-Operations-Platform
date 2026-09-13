@@ -1,59 +1,80 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Check, X } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
-import { Shield, Check, X, Minus } from 'lucide-react';
+import { api } from '../../services/api';
 
 export default function AdminPermissions() {
-  const permissions = [
-    { name: 'Submit Guest Requests', guest: 'own', staff: false, manager: false, admin: false },
-    { name: 'View Requests', guest: 'own', staff: 'assigned', manager: 'all', admin: 'all' },
-    { name: 'Manage Tasks', guest: false, staff: true, manager: true, admin: true },
-    { name: 'View Analytics', guest: false, staff: 'own', manager: true, admin: true },
-    { name: 'View Issue Trends', guest: false, staff: false, manager: true, admin: true },
-    { name: 'Manage Staff', guest: false, staff: false, manager: 'view', admin: true },
-    { name: 'Hotel Configuration', guest: false, staff: false, manager: false, admin: true },
-    { name: 'Knowledge Center', guest: false, staff: 'read', manager: 'read', admin: true },
-    { name: 'SLA Configuration', guest: false, staff: false, manager: false, admin: true },
-    { name: 'Roles & Permissions', guest: false, staff: false, manager: false, admin: true },
-  ];
+  const [matrix, setMatrix] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const renderCell = (val) => {
-    if (val === true) return <div className="flex justify-center"><div className="w-6 h-6 rounded-full bg-success flex items-center justify-center"><Check size={12} className="text-white" /></div></div>;
-    if (val === false) return <div className="flex justify-center"><div className="w-6 h-6 rounded-full bg-secondary-bg flex items-center justify-center"><X size={12} className="text-text-muted" /></div></div>;
-    return <span className="text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">{val}</span>;
-  };
+  useEffect(() => {
+    api.get('/admin/permissions')
+      .then(data => {
+        if (Array.isArray(data)) setMatrix(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div>
-      <div className="mb-8 flex items-center gap-3">
-        <div className="p-2 bg-primary/10 rounded-lg"><Shield className="text-primary" size={24} /></div>
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Roles & Permissions</h1>
-          <p className="text-text-muted mt-1">Access control matrix for all user roles.</p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-primary font-serif">Role-Based Access Control (RBAC)</h1>
+        <p className="text-text-muted text-sm mt-1">
+          Cryptographic enforcement matrix separating Guest, Staff, Manager, and Administrator privileges.
+        </p>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden bg-white shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-primary text-white">
-              <tr>
-                <th className="px-6 py-4 text-left font-semibold">Permission</th>
-                <th className="px-6 py-4 text-center font-semibold text-accent">Guest</th>
-                <th className="px-6 py-4 text-center font-semibold text-accent">Staff</th>
-                <th className="px-6 py-4 text-center font-semibold text-accent">Manager</th>
-                <th className="px-6 py-4 text-center font-semibold text-accent">Admin</th>
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-border bg-secondary-bg/30 text-[11px] font-bold text-text-muted uppercase tracking-wider">
+                <th className="p-4">Operational Feature</th>
+                <th className="p-4 text-center">Guest</th>
+                <th className="p-4 text-center">Staff</th>
+                <th className="p-4 text-center">Manager</th>
+                <th className="p-4 text-center">Administrator</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {permissions.map((perm, i) => (
-                <tr key={i} className={`${i % 2 === 0 ? 'bg-white' : 'bg-secondary-bg/30'} hover:bg-accent/5 transition-colors`}>
-                  <td className="px-6 py-4 font-medium text-primary">{perm.name}</td>
-                  <td className="px-6 py-4 text-center">{renderCell(perm.guest)}</td>
-                  <td className="px-6 py-4 text-center">{renderCell(perm.staff)}</td>
-                  <td className="px-6 py-4 text-center">{renderCell(perm.manager)}</td>
-                  <td className="px-6 py-4 text-center">{renderCell(perm.admin)}</td>
-                </tr>
-              ))}
+              {loading ? (
+                <tr><td colSpan="5" className="p-8 text-center text-text-muted">Loading permissions matrix...</td></tr>
+              ) : (
+                matrix.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-secondary-bg/20">
+                    <td className="p-4 font-bold text-primary text-sm">{row.feature}</td>
+                    <td className="p-4 text-center">
+                      {row.guest ? (
+                        <Check size={18} className="text-success mx-auto" />
+                      ) : (
+                        <span className="text-text-muted/40 font-bold">—</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      {row.staff ? (
+                        <Check size={18} className="text-success mx-auto" />
+                      ) : (
+                        <span className="text-text-muted/40 font-bold">—</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      {row.manager ? (
+                        <Check size={18} className="text-success mx-auto" />
+                      ) : (
+                        <span className="text-text-muted/40 font-bold">—</span>
+                      )}
+                    </td>
+                    <td className="p-4 text-center">
+                      {row.admin ? (
+                        <Check size={18} className="text-success mx-auto" />
+                      ) : (
+                        <span className="text-text-muted/40 font-bold">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

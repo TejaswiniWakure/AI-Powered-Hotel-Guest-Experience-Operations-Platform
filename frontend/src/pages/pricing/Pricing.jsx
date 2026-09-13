@@ -38,7 +38,9 @@ export default function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" variant="outline">Start Free Trial</Button>
+              <Link to="/signup" className="w-full">
+                <Button className="w-full" variant="outline">Start Free Trial</Button>
+              </Link>
             </CardFooter>
           </Card>
 
@@ -66,7 +68,9 @@ export default function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full bg-accent text-primary hover:bg-accent-light">Start Free Trial</Button>
+              <Link to="/signup" className="w-full">
+                <Button className="w-full bg-accent text-primary hover:bg-accent-light">Start Free Trial</Button>
+              </Link>
             </CardFooter>
           </Card>
 
@@ -90,7 +94,9 @@ export default function Pricing() {
               </ul>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" variant="outline">Contact Sales</Button>
+              <Link to="/signup" className="w-full">
+                <Button className="w-full" variant="outline">Contact Sales</Button>
+              </Link>
             </CardFooter>
           </Card>
         </div>

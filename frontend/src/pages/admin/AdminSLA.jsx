@@ -1,71 +1,144 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Clock, Save, CheckCircle2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Clock, Save } from 'lucide-react';
+import { Input } from '../../components/ui/Input';
+import { api } from '../../services/api';
 
 export default function AdminSLA() {
-  const [rules, setRules] = useState([
-    { label: 'Critical', color: 'bg-critical', textColor: 'text-critical', minutes: 15 },
-    { label: 'High', color: 'bg-high', textColor: 'text-high', minutes: 30 },
-    { label: 'Medium', color: 'bg-medium', textColor: 'text-medium', minutes: 60 },
-    { label: 'Low', color: 'bg-success', textColor: 'text-success', minutes: 120 },
-  ]);
+  const [sla, setSla] = useState({
+    Critical: { response: 5, resolution: 15, escalation: 12 },
+    High: { response: 10, resolution: 30, escalation: 25 },
+    Medium: { response: 15, resolution: 60, escalation: 50 },
+    Low: { response: 30, resolution: 120, escalation: 100 }
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleChange = (i, val) => {
-    const updated = [...rules];
-    updated[i].minutes = parseInt(val) || 0;
-    setRules(updated);
+  useEffect(() => {
+    api.get('/admin/sla')
+      .then(data => {
+        if (data) setSla(data);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
     setSaved(false);
+    try {
+      await api.patch('/admin/sla', sla);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      alert('Failed to save SLA rules: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
+  const updateTier = (tier, field, val) => {
+    setSla(prev => ({
+      ...prev,
+      [tier]: {
+        ...prev[tier],
+        [field]: Number(val)
+      }
+    }));
+  };
+
+  const tiers = [
+    { key: 'Critical', label: 'Critical Tier', desc: 'Active safety hazard, fire risk, or major flooding', color: 'border-critical' },
+    { key: 'High', label: 'High Priority', desc: 'AC complete failure, active pipe leak, VIP escalation', color: 'border-high' },
+    { key: 'Medium', label: 'Medium Priority', desc: 'TV, Wi-Fi connectivity, room cleaning refresh', color: 'border-medium' },
+    { key: 'Low', label: 'Low Priority', desc: 'Extra towels, pillow options, water bottles', color: 'border-border' }
+  ];
+
   return (
-    <div>
-      <div className="mb-8 flex items-center gap-3">
-        <div className="p-2 bg-primary/10 rounded-lg"><Clock className="text-primary" size={24} /></div>
+    <div className="max-w-4xl">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary">SLA Rules</h1>
-          <p className="text-text-muted mt-1">Set response time targets for each priority level.</p>
+          <h1 className="text-3xl font-bold text-primary font-serif">SLA Timing & Escalation Engine</h1>
+          <p className="text-text-muted text-sm mt-1">
+            Configure statutory resolution deadlines and automated manager alert thresholds by priority level.
+          </p>
         </div>
+
+        {saved && (
+          <span className="text-xs font-semibold text-success bg-success/10 px-3 py-1.5 rounded-xl flex items-center gap-1">
+            <CheckCircle2 size={16} /> SLA Rules Live
+          </span>
+        )}
       </div>
 
-      <div className="max-w-2xl">
-        <Card className="p-6">
-          <h2 className="text-lg font-bold text-primary mb-6">Response Time Targets</h2>
-          <div className="space-y-6">
-            {rules.map((rule, i) => (
-              <div key={i} className="flex items-center gap-6">
-                <div className="flex items-center gap-3 w-32">
-                  <div className={`w-3 h-3 rounded-full ${rule.color}`} />
-                  <span className={`font-semibold text-sm ${rule.textColor}`}>{rule.label}</span>
+      <form onSubmit={handleSave}>
+        <div className="grid md:grid-cols-2 gap-5 mb-6">
+          {tiers.map(t => {
+            const current = sla[t.key] || { response: 10, resolution: 30, escalation: 25 };
+            return (
+              <Card key={t.key} className={`p-5 bg-white border-l-4 ${t.color}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="font-bold text-base text-primary">{t.label}</h3>
+                  <Clock size={16} className="text-text-muted" />
                 </div>
-                <div className="flex-1 flex items-center gap-3">
-                  <input
-                    type="number"
-                    min={1}
-                    value={rule.minutes}
-                    onChange={(e) => handleChange(i, e.target.value)}
-                    className="w-24 border border-border rounded-md px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent bg-white"
-                  />
-                  <span className="text-sm text-text-muted">minutes</span>
-                  <span className="text-sm text-text-muted">
-                    ({rule.minutes >= 60 ? `${Math.floor(rule.minutes / 60)}h ${rule.minutes % 60 > 0 ? `${rule.minutes % 60}m` : ''}`.trim() : `${rule.minutes}m`})
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-8 flex justify-end">
-            <Button onClick={() => setSaved(true)} className="flex items-center gap-2">
-              <Save size={16} /> {saved ? 'Saved!' : 'Save Rules'}
-            </Button>
-          </div>
-        </Card>
+                <p className="text-xs text-text-muted mb-4">{t.desc}</p>
 
-        <div className="mt-6 p-4 bg-secondary-bg rounded-xl border border-border text-sm text-text-muted">
-          <strong className="text-primary">Note:</strong> SLA timers start when a task is assigned to a staff member. Exceeding SLA automatically escalates the task to the manager.
+                <div className="grid grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-bold text-text-muted uppercase mb-1">
+                      Ack. Time (min)
+                    </label>
+                    <Input
+                      type="number"
+                      value={current.response}
+                      onChange={(e) => updateTier(t.key, 'response', e.target.value)}
+                      min="1"
+                      className="text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-primary uppercase mb-1">
+                      Target SLA (min)
+                    </label>
+                    <Input
+                      type="number"
+                      value={current.resolution}
+                      onChange={(e) => updateTier(t.key, 'resolution', e.target.value)}
+                      min="5"
+                      className="text-xs font-bold text-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-critical uppercase mb-1">
+                      Escalate (min)
+                    </label>
+                    <Input
+                      type="number"
+                      value={current.escalation}
+                      onChange={(e) => updateTier(t.key, 'escalation', e.target.value)}
+                      min="3"
+                      className="text-xs font-semibold text-critical"
+                    />
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
         </div>
-      </div>
+
+        <Button
+          type="submit"
+          disabled={saving}
+          className="bg-primary text-accent hover:bg-primary-hover font-bold text-xs uppercase tracking-wider py-2.5 px-6 gap-2"
+        >
+          <Save size={16} /> {saving ? 'Applying...' : 'Save SLA Rules'}
+        </Button>
+      </form>
     </div>
   );
 }

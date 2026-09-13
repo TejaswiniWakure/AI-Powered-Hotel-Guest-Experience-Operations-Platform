@@ -1,0 +1,20 @@
+module.exports = {
+  Hotel: require('./Hotel'),
+  User: require('./User'),
+  Room: require('./Room'),
+  Department: require('./Department'),
+  Service: require('./Service'),
+  Request: require('./Request'),
+  Task: require('./Task'),
+  KnowledgeDocument: require('./KnowledgeDocument'),
+  Conversation: require('./Conversation'),
+  AiAnalysis: require('./AiAnalysis'),
+  Notification: require('./Notification'),
+  Feedback: require('./Feedback'),
+  IssueTrend: require('./IssueTrend'),
+  SafetyCheck: require('./SafetyCheck'),
+  Offer: require('./Offer'),
+  ActivityLog: require('./ActivityLog'),
+  Subscription: require('./Subscription'),
+  ProblemCategory: require('./ProblemCategory')
+};

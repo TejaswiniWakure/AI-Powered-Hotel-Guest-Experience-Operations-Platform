@@ -1,74 +1,170 @@
-import React from 'react';
-import { Card } from '../../components/ui/Card';
-import { CheckSquare, AlertTriangle, Clock, CheckCircle2 } from 'lucide-react';
-import { Badge } from '../../components/ui/Badge';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { 
+  CheckSquare, AlertTriangle, Clock, TrendingUp, 
+  ChevronRight, ArrowRight, Wrench, ShieldAlert, Sparkles 
+} from 'lucide-react';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import SLAIndicator from '../../components/shared/SLAIndicator';
+import PriorityBadge from '../../components/shared/PriorityBadge';
+import StatusBadge from '../../components/shared/StatusBadge';
 
 export default function StaffOverview() {
-  const stats = [
-    { label: "Today's Tasks", value: "0", icon: <CheckSquare size={24} className="text-primary" />, color: "bg-primary/10" },
-    { label: "Pending", value: "0", icon: <Clock size={24} className="text-medium" />, color: "bg-medium/10" },
-    { label: "High Priority", value: "0", icon: <AlertTriangle size={24} className="text-critical" />, color: "bg-critical/10" },
-    { label: "Completed", value: "0", icon: <CheckCircle2 size={24} className="text-success" />, color: "bg-success/10" },
-  ];
+  const { user } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const priorityTasks = [];
+  const fetchDashboard = () => {
+    api.get('/staff/dashboard')
+      .then(res => setData(res))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+    const interval = setInterval(fetchDashboard, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const kpis = data?.kpis || {
+    myPendingCount: 0,
+    highPriorityCount: 0,
+    completedTodayCount: 0,
+    slaRiskCount: 0
+  };
 
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-primary">Good Morning, Rahul</h1>
-        <p className="text-text-muted mt-1">Here is your workload for today.</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat, i) => (
-          <Card key={i} className="p-4 flex items-center gap-4">
-            <div className={`p-3 rounded-xl ${stat.color}`}>
-              {stat.icon}
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-primary">{stat.value}</p>
-              <p className="text-sm text-text-muted font-medium">{stat.label}</p>
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="mb-8">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-primary">Today's Priority Tasks</h2>
-          <Link to="/staff/tasks" className="text-sm text-accent font-medium hover:underline">View All</Link>
+      {/* Top Banner */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-primary font-serif">Today's Work Orders</h1>
+          <p className="text-text-muted text-sm mt-1">
+            Welcome, <strong className="text-primary">{user?.name}</strong> · {user?.department || 'Engineering'} Specialist
+          </p>
         </div>
-        
-        {priorityTasks.length > 0 ? (
-          <div className="grid md:grid-cols-2 gap-4">
-            {priorityTasks.map((task) => (
-              <Link key={task.id} to={`/staff/tasks/${task.id}`}>
-                <Card className="p-5 border-l-4 border-l-critical hover:border-primary transition-colors cursor-pointer">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <Badge variant="danger" className="mb-2">Critical SLA</Badge>
-                      <h3 className="font-bold text-primary text-lg">{task.issue}</h3>
-                      <p className="text-text-muted text-sm flex items-center gap-2">
-                        <span className="font-semibold text-primary">Room {task.room}</span> • {task.id}
-                      </p>
+        <div className="flex items-center gap-3">
+          <Link to="/staff/assistant">
+            <Button variant="outline" size="sm" className="gap-2 bg-white">
+              <Sparkles size={14} className="text-accent" /> SOP Assistant
+            </Button>
+          </Link>
+          <Link to="/staff/tasks">
+            <Button size="sm" className="bg-primary text-accent hover:bg-primary-hover gap-1.5">
+              View All Tasks <ArrowRight size={14} />
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Pending Tasks</span>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+              <CheckSquare size={18} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-primary">{kpis.myPendingCount}</p>
+          <p className="text-xs text-text-muted mt-1">Assigned to your queue</p>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-high uppercase tracking-wider">High Priority</span>
+            <div className="w-8 h-8 rounded-lg bg-high/15 text-high flex items-center justify-center">
+              <AlertTriangle size={18} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-high">{kpis.highPriorityCount}</p>
+          <p className="text-xs text-text-muted mt-1">Require immediate dispatch</p>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-critical uppercase tracking-wider">SLA Risk</span>
+            <div className="w-8 h-8 rounded-lg bg-critical/15 text-critical flex items-center justify-center">
+              <Clock size={18} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-critical">{kpis.slaRiskCount}</p>
+          <p className="text-xs text-text-muted mt-1">Approaching or breached</p>
+        </Card>
+
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-bold text-success uppercase tracking-wider">Completed Today</span>
+            <div className="w-8 h-8 rounded-lg bg-success/15 text-success flex items-center justify-center">
+              <TrendingUp size={18} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-success">{kpis.completedTodayCount}</p>
+          <p className="text-xs text-text-muted mt-1">Work orders closed</p>
+        </Card>
+      </div>
+
+      {/* Urgent Tasks Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-primary">Priority Dispatch Queue</h2>
+          <Link to="/staff/tasks" className="text-xs font-semibold text-accent hover:underline">
+            Manage All Active Tasks →
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="p-12 text-center text-xs text-text-muted bg-white rounded-xl border border-border">
+            Loading urgent tasks...
+          </div>
+        ) : !data?.urgentTasks || data.urgentTasks.length === 0 ? (
+          <Card className="p-8 text-center border-dashed bg-secondary-bg/30">
+            <CheckSquare size={36} className="mx-auto text-success mb-2 opacity-80" />
+            <h3 className="font-bold text-sm text-primary mb-1">Queue is Clear</h3>
+            <p className="text-xs text-text-muted">No urgent tasks currently assigned to your shift.</p>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {data.urgentTasks.map(task => (
+              <Card key={task._id} className="p-5 hover:border-primary hover:shadow-md transition-all border-l-4 border-l-high">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary text-white flex items-center justify-center font-bold text-sm shrink-0">
+                      {task.roomNumber}
                     </div>
-                    <div className="text-right">
-                      <span className="text-2xl font-bold text-critical">{task.timeRemaining}</span>
-                      <p className="text-xs text-text-muted font-medium">SLA Remaining</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-sm text-primary">{task.category}</h3>
+                        <PriorityBadge priority={task.priority} />
+                        <StatusBadge status={task.status} />
+                      </div>
+                      <p className="text-xs text-text-muted mt-0.5 line-clamp-1">{task.description}</p>
                     </div>
                   </div>
-                </Card>
-              </Link>
+
+                  <div className="flex items-center gap-3">
+                    <SLAIndicator slaDeadline={task.slaDeadline} slaMinutes={task.slaMinutes} status={task.status} />
+                    <Link to={`/staff/tasks/${task._id}`}>
+                      <Button size="sm" className="bg-primary text-accent hover:bg-primary-hover font-bold text-xs">
+                        Open Work Order
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+
+                {task.aiSummary && (
+                  <div className="pt-2 border-t border-border/60 text-xs text-text-muted flex items-center gap-1.5">
+                    <Sparkles size={12} className="text-accent shrink-0" />
+                    <span><strong className="text-primary">AI Task Brief:</strong> {task.aiSummary}</span>
+                  </div>
+                )}
+              </Card>
             ))}
           </div>
-        ) : (
-          <Card className="p-8 text-center bg-secondary-bg/50 border-dashed">
-            <CheckSquare size={48} className="mx-auto text-text-muted mb-4 opacity-50" />
-            <h3 className="text-lg font-bold text-primary mb-2">No priority tasks</h3>
-            <p className="text-text-muted">You're all caught up for now.</p>
-          </Card>
         )}
       </div>
     </div>

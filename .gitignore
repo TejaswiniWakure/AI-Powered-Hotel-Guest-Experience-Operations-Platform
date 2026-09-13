@@ -3,3 +3,13 @@ node_modules/
 backend/mongodb-macos-aarch64--8.3.9/
 backend/data/db/
 .DS_Store
+*.log
+token.txt
+.env
+*.env
+.DS_Store
+**/.DS_Store
+node_modules/
+**/node_modules/
+dist/
+**/dist/

@@ -1,85 +1,88 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { 
-  LayoutDashboard, Activity, CheckSquare, Users, BarChart3, 
-  TrendingUp, Heart, Gift, ShieldCheck, FileText, Bell, 
-  Settings, Building2, LogOut, Menu 
+  BarChart3, Activity, ListOrdered, Users, TrendingUp, 
+  Heart, Gift, ShieldAlert, FileText, LogOut, Building2, LayoutGrid,
+  ChefHat, UtensilsCrossed, Settings
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
+import NotificationBell from '../shared/NotificationBell';
 
 export default function ManagerLayout() {
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { user, hotelName, hotelCode, logout } = useAuth();
+  const navigate = useNavigate();
 
-  const navGroups = [
+  const navSections = [
     {
-      title: 'Operations',
+      title: 'OPERATIONS',
       items: [
-        { icon: <LayoutDashboard size={18} />, label: 'Overview', path: '/manager' },
-        { icon: <Activity size={18} />, label: 'Live Operations', path: '/manager/operations' },
-        { icon: <CheckSquare size={18} />, label: 'Requests', path: '/manager/requests' },
-        { icon: <Users size={18} />, label: 'Staff', path: '/manager/staff' },
+        { label: 'Overview', path: '/manager', icon: BarChart3, end: true },
+        { label: 'Live Operations', path: '/manager/operations', icon: Activity },
+        { label: 'Requests', path: '/manager/requests', icon: ListOrdered },
+        { label: 'Food Orders', path: '/manager/food-orders', icon: ChefHat },
+        { label: 'Staff Workload', path: '/manager/staff', icon: Users }
       ]
     },
     {
-      title: 'Insights',
+      title: 'IN-ROOM DINING',
       items: [
-        { icon: <BarChart3 size={18} />, label: 'Analytics', path: '/manager/analytics' },
-        { icon: <TrendingUp size={18} />, label: 'Issue Trends', path: '/manager/trends' },
-        { icon: <Heart size={18} />, label: 'Guest Preferences', path: '/manager/guest-preferences' },
-        { icon: <Gift size={18} />, label: 'Offers', path: '/manager/offers' },
+        { label: 'Menu Catalog', path: '/manager/services/menu', icon: UtensilsCrossed },
+        { label: 'Kitchen & Settings', path: '/manager/services/menu/settings', icon: Settings }
       ]
     },
     {
-      title: 'Management',
+      title: 'INTELLIGENCE',
       items: [
-        { icon: <ShieldCheck size={18} />, label: 'Safety & Compliance', path: '/manager/safety' },
-        { icon: <FileText size={18} />, label: 'Reports', path: '/manager/reports' },
+        { label: 'Analytics', path: '/manager/analytics', icon: BarChart3 },
+        { label: 'Issue Trends', path: '/manager/trends', icon: TrendingUp }
       ]
     }
   ];
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-primary text-white flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-2 font-bold text-lg"><Building2 className="text-accent" /> Manager</div>
-        <button onClick={() => setMobileOpen(!mobileOpen)}><Menu /></button>
-      </div>
-
+    <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 w-64 bg-primary text-white flex flex-col transition-transform z-40 overflow-y-auto custom-scrollbar",
-        mobileOpen ? "translate-x-0 mt-16 lg:mt-0" : "-translate-x-full lg:translate-x-0"
-      )}>
-        <div className="h-16 hidden lg:flex items-center gap-2 px-6 font-bold text-xl border-b border-white/10 shrink-0">
-          <Building2 className="text-accent" /> StayFlow
-        </div>
-        
-        <div className="px-6 py-4 border-b border-white/10 shrink-0">
-          <p className="text-sm text-white/70">Welcome back,</p>
-          <p className="font-semibold text-accent">Sarah • General Manager</p>
+      <aside className="w-full md:w-64 bg-primary text-white flex flex-col shrink-0 border-r border-secondary">
+        {/* Brand */}
+        <div className="p-6 border-b border-secondary flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-primary font-bold shadow-md">
+              <Building2 size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-base tracking-tight text-white">StayFlow</span>
+                <span className="text-[10px] bg-accent/20 text-accent font-bold px-1.5 py-0.5 rounded">OPS</span>
+              </div>
+              <p className="text-xs text-white/50 truncate max-w-[130px]">{hotelName}</p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex-1 py-4 px-3 space-y-6">
-          {navGroups.map((group, idx) => (
+        {/* Navigation Sections */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {navSections.map((sec, idx) => (
             <div key={idx}>
-              <p className="px-3 text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">{group.title}</p>
+              <p className="text-[11px] font-bold text-accent tracking-wider px-3 mb-2 uppercase">{sec.title}</p>
               <nav className="space-y-1">
-                {group.items.map(item => {
-                  const isActive = location.pathname === item.path || (item.path !== '/manager' && location.pathname.startsWith(item.path));
+                {sec.items.map((item) => {
+                  const Icon = item.icon;
                   return (
-                    <Link
+                    <NavLink
                       key={item.path}
                       to={item.path}
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                        isActive ? "bg-secondary text-accent border-l-4 border-accent" : "text-white/70 hover:bg-white/5 hover:text-white"
-                      )}
+                      end={item.end}
+                      className={({ isActive }) =>
+                        `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-secondary text-white font-semibold border-l-3 border-accent'
+                            : 'text-white/70 hover:bg-white/5 hover:text-white'
+                        }`
+                      }
                     >
-                      {item.icon} {item.label}
-                    </Link>
+                      <Icon size={18} className="text-accent shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
                   );
                 })}
               </nav>
@@ -87,29 +90,50 @@ export default function ManagerLayout() {
           ))}
         </div>
 
-        <div className="p-4 border-t border-white/10 shrink-0">
-          <Link to="/login" className="flex items-center gap-3 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-            <LogOut size={18} /> Sign Out
-          </Link>
+        {/* Footer with logout */}
+        <div className="p-4 border-t border-secondary bg-primary-hover/50">
+          <div className="flex items-center justify-between mb-3 px-2">
+            <div className="overflow-hidden">
+              <p className="text-xs font-semibold text-white truncate">{user?.name || 'Manager'}</p>
+              <p className="text-[11px] text-white/50 truncate">Duty Operations Manager</p>
+            </div>
+          </div>
+          <button
+            onClick={() => { logout(); navigate('/login'); }}
+            className="flex items-center gap-2.5 w-full px-3 py-1.5 rounded-lg text-xs text-white/60 hover:text-critical hover:bg-white/5 transition-colors"
+          >
+            <LogOut size={16} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pt-16 lg:pt-0">
-        {/* Top bar for desktop */}
-        <div className="hidden lg:flex h-16 border-b border-border bg-white items-center justify-end px-8 shrink-0">
-          <div className="flex items-center gap-4">
-            <button className="p-2 text-text-muted hover:text-primary relative">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-critical rounded-full"></span>
-            </button>
-            <button className="p-2 text-text-muted hover:text-primary"><Settings size={20} /></button>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 bg-white border-b border-border px-6 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold px-3 py-1 rounded-full bg-primary/5 text-primary flex items-center gap-2 border border-border">
+              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              Live Operations Feed
+            </span>
+            <span className="text-xs text-text-muted hidden md:inline">
+              Hotel ID: <strong className="text-primary">{hotelCode}</strong>
+            </span>
           </div>
-        </div>
-        <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+
+          <div className="flex items-center gap-4">
+            <NotificationBell role="manager" />
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-bold text-primary">{user?.name}</p>
+              <p className="text-[11px] text-accent font-medium">Operations Command</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

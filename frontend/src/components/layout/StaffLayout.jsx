@@ -1,74 +1,113 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, CheckSquare, MessageSquare, BarChart2, Bell, Settings, Building2, LogOut, Menu } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
+import { 
+  CheckSquare, MessageSquare, TrendingUp, Bell, 
+  Settings, LogOut, Building2, Wrench, ShieldCheck, LayoutGrid
+} from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import NotificationBell from '../shared/NotificationBell';
 
 export default function StaffLayout() {
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const { user, hotelName, hotelCode, logout } = useAuth();
+  const navigate = useNavigate();
 
   const navItems = [
-    { icon: <LayoutDashboard size={20} />, label: 'Overview', path: '/staff' },
-    { icon: <CheckSquare size={20} />, label: 'My Tasks', path: '/staff/tasks' },
-    { icon: <MessageSquare size={20} />, label: 'Assistant', path: '/staff/assistant' },
-    { icon: <BarChart2 size={20} />, label: 'Performance', path: '/staff/performance' },
-    { icon: <Bell size={20} />, label: 'Notifications', path: '/staff/notifications' },
+    { label: 'Overview', path: '/staff', icon: CheckSquare, end: true },
+    { label: 'My Tasks', path: '/staff/tasks', icon: Wrench },
+    { label: 'Staff Assistant (SOP)', path: '/staff/assistant', icon: MessageSquare },
+    { label: 'Performance', path: '/staff/performance', icon: TrendingUp }
   ];
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile Header & Menu Button */}
-      <div className="md:hidden fixed top-0 left-0 right-0 h-16 bg-primary text-white flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-2 font-bold text-lg"><Building2 className="text-accent" /> StayFlow Staff</div>
-        <button onClick={() => setMobileOpen(!mobileOpen)}><Menu /></button>
-      </div>
-
+    <div className="min-h-screen bg-background flex flex-col md:flex-row">
       {/* Sidebar */}
-      <aside className={cn(
-        "fixed md:static inset-y-0 left-0 w-64 bg-primary text-white flex flex-col transition-transform z-40",
-        mobileOpen ? "translate-x-0 mt-16 md:mt-0" : "-translate-x-full md:translate-x-0"
-      )}>
-        <div className="h-16 hidden md:flex items-center gap-2 px-6 font-bold text-xl border-b border-white/10">
-          <Building2 className="text-accent" /> StayFlow
-        </div>
-        
-        <div className="px-6 py-4 border-b border-white/10">
-          <p className="text-sm text-white/70">Welcome back,</p>
-          <p className="font-semibold text-accent">Rahul • Maintenance</p>
+      <aside className="w-full md:w-64 bg-primary text-white flex flex-col shrink-0 border-r border-secondary">
+        <div className="p-6 border-b border-secondary flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-primary font-bold shadow-md">
+              <Building2 size={22} />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-base tracking-tight text-white">StayFlow</span>
+                <span className="text-[10px] bg-accent/20 text-accent font-bold px-1.5 py-0.5 rounded">STAFF</span>
+              </div>
+              <p className="text-xs text-white/50 truncate max-w-[130px]">{hotelName}</p>
+            </div>
+          </div>
         </div>
 
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {navItems.map(item => {
-            const isActive = location.pathname === item.path || (item.path !== '/staff' && location.pathname.startsWith(item.path));
+        {/* User Card */}
+        <div className="p-4 mx-4 my-4 bg-secondary rounded-xl border border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-accent/20 text-accent font-bold flex items-center justify-center text-sm">
+              {user?.name?.[0] || 'S'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-semibold text-white truncate">{user?.name || 'Staff Member'}</p>
+              <p className="text-xs text-accent truncate">{user?.department || 'Maintenance Team'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-2 space-y-1.5">
+          {navItems.map((item) => {
+            const Icon = item.icon;
             return (
-              <Link
+              <NavLink
                 key={item.path}
                 to={item.path}
-                onClick={() => setMobileOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  isActive ? "bg-secondary text-accent border-l-4 border-accent" : "text-white/70 hover:bg-white/5 hover:text-white"
-                )}
+                end={item.end}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-secondary text-white font-semibold border-l-3 border-accent'
+                      : 'text-white/70 hover:bg-white/5 hover:text-white'
+                  }`
+                }
               >
-                {item.icon} {item.label}
-              </Link>
+                <Icon size={18} className="text-accent shrink-0" />
+                <span>{item.label}</span>
+              </NavLink>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/10">
-          <Link to="/login" className="flex items-center gap-3 px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
-            <LogOut size={20} /> Sign Out
-          </Link>
+        {/* Footer */}
+        <div className="p-4 border-t border-secondary">
+          <button
+            onClick={() => { logout(); navigate('/login'); }}
+            className="flex items-center gap-3 w-full px-3.5 py-2 rounded-xl text-sm text-white/60 hover:text-critical hover:bg-white/5 transition-colors"
+          >
+            <LogOut size={18} />
+            <span>Sign Out</span>
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto pt-16 md:pt-0">
-        <div className="p-6 md:p-8 max-w-6xl mx-auto">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 bg-white border-b border-border px-6 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-success/10 text-success flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              Operational Network Live
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <NotificationBell role="staff" />
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-bold text-primary">{user?.name}</p>
+              <p className="text-[11px] text-text-muted">{user?.email}</p>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

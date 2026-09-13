@@ -18,12 +18,23 @@
   --color-medium: #C6A23A;
   --color-success: #3E8065;
   --color-info: #4778A8;
+
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-text-main);
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+html {
+  scroll-behavior: smooth;
 }
