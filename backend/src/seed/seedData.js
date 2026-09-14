@@ -25,7 +25,10 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/stayfl
 async function seed() {
   try {
     console.log('Connecting to MongoDB for seeding at', MONGODB_URI);
-    await mongoose.connect(MONGODB_URI);
+        await mongoose.connect(MONGODB_URI, {
+      family: 4,
+      serverSelectionTimeoutMS: 10000
+    });
     console.log('MongoDB connection established.');
 
     // Clear existing data
@@ -169,18 +172,18 @@ async function seed() {
 
     console.log('Creating Catalog Services...');
     const servicesToSeed = [
-      { name: 'Extra Towels', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 30, description: 'Fresh set of plush bath and hand towels delivered to room.' },
-      { name: 'Extra Pillow', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 30, description: 'Feather or memory foam pillow with fresh pillowcase.' },
-      { name: 'Drinking Water', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 20, description: 'Complimentary glass bottles of chilled Himalayan spring water.' },
-      { name: 'Room Cleaning', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Medium', defaultSLAMinutes: 60, description: 'Full room tidying, vacuuming, bed making, and bathroom sanitation.' },
-      { name: 'Laundry Service', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Medium', defaultSLAMinutes: 120, description: 'Express washing, dry-cleaning, and pressing with return in 4 hours.' },
-      { name: 'Iron & Ironing Board', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 25, description: 'Steam iron with folding ironing board.' },
-      { name: 'AC Inspection / Cooling', category: 'Maintenance', departmentId: departmentDocs['Maintenance']._id, defaultPriority: 'High', defaultSLAMinutes: 30, description: 'Technician diagnostics for temperature, thermostat, or airflow issue.' },
-      { name: 'Plumbing / Leak Repair', category: 'Maintenance', departmentId: departmentDocs['Maintenance']._id, defaultPriority: 'High', defaultSLAMinutes: 30, description: 'Inspection and fix for tap leakage, shower drain, or toilet flush.' },
-      { name: 'Wi-Fi / TV Assistance', category: 'Maintenance', departmentId: departmentDocs['Maintenance']._id, defaultPriority: 'Medium', defaultSLAMinutes: 45, description: 'In-room high-speed network setup or smart TV troubleshooting.' },
-      { name: 'Room Service Breakfast', category: 'Room Service', departmentId: departmentDocs['Room Service']._id, defaultPriority: 'Medium', defaultSLAMinutes: 35, description: 'Continental, American, or Indian hot breakfast platter.' },
-      { name: 'Late Checkout Request', category: 'Front Desk', departmentId: departmentDocs['Front Desk']._id, defaultPriority: 'Low', defaultSLAMinutes: 60, description: 'Extend stay departure time past standard 11:00 AM.' },
-      { name: 'Luggage Assistance', category: 'Front Desk', departmentId: departmentDocs['Front Desk']._id, defaultPriority: 'Low', defaultSLAMinutes: 20, description: 'Bell desk assistance with luggage transfer or temporary storage.' }
+      { name: 'Extra Towels', slug: 'extra-towels', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 30, description: 'Fresh set of plush bath and hand towels delivered to room.' },
+      { name: 'Extra Pillow', slug: 'extra-pillow', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 30, description: 'Feather or memory foam pillow with fresh pillowcase.' },
+      { name: 'Drinking Water', slug: 'drinking-water', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 20, description: 'Complimentary glass bottles of chilled Himalayan spring water.' },
+      { name: 'Room Cleaning', slug: 'room-cleaning', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Medium', defaultSLAMinutes: 60, description: 'Full room tidying, vacuuming, bed making, and bathroom sanitation.' },
+      { name: 'Laundry Service', slug: 'laundry-service', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Medium', defaultSLAMinutes: 120, description: 'Express washing, dry-cleaning, and pressing with return in 4 hours.' },
+      { name: 'Iron & Ironing Board', slug: 'iron-ironing-board', category: 'Housekeeping', departmentId: departmentDocs['Housekeeping']._id, defaultPriority: 'Low', defaultSLAMinutes: 25, description: 'Steam iron with folding ironing board.' },
+      { name: 'AC Inspection / Cooling', slug: 'ac-inspection-cooling', category: 'Maintenance', departmentId: departmentDocs['Maintenance']._id, defaultPriority: 'High', defaultSLAMinutes: 30, description: 'Technician diagnostics for temperature, thermostat, or airflow issue.' },
+      { name: 'Plumbing / Leak Repair', slug: 'plumbing-leak-repair', category: 'Maintenance', departmentId: departmentDocs['Maintenance']._id, defaultPriority: 'High', defaultSLAMinutes: 30, description: 'Inspection and fix for tap leakage, shower drain, or toilet flush.' },
+      { name: 'Wi-Fi / TV Assistance', slug: 'wifi-tv-assistance', category: 'Maintenance', departmentId: departmentDocs['Maintenance']._id, defaultPriority: 'Medium', defaultSLAMinutes: 45, description: 'In-room high-speed network setup or smart TV troubleshooting.' },
+      { name: 'Room Service Breakfast', slug: 'room-service-breakfast', category: 'Room Service', departmentId: departmentDocs['Room Service']._id, defaultPriority: 'Medium', defaultSLAMinutes: 35, description: 'Continental, American, or Indian hot breakfast platter.' },
+      { name: 'Late Checkout Request', slug: 'late-checkout-request', category: 'Front Desk', departmentId: departmentDocs['Front Desk']._id, defaultPriority: 'Low', defaultSLAMinutes: 60, description: 'Extend stay departure time past standard 11:00 AM.' },
+      { name: 'Luggage Assistance', slug: 'luggage-assistance', category: 'Front Desk', departmentId: departmentDocs['Front Desk']._id, defaultPriority: 'Low', defaultSLAMinutes: 20, description: 'Bell desk assistance with luggage transfer or temporary storage.' }
     ];
 
     for (const s of servicesToSeed) {
