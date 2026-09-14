@@ -7,7 +7,7 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 15000
+  timeout: 60000
 });
 
 // Request interceptor to attach JWT token
@@ -32,10 +32,15 @@ apiClient.interceptors.response.use(
     return response.data;
   },
   (error) => {
-    const message = error.response?.data?.error?.message || 
-                    error.response?.data?.message || 
-                    error.message || 
-                    'An error occurred connecting to server';
+    let message = error.response?.data?.error?.message || 
+                  error.response?.data?.message || 
+                  error.message || 
+                  'An error occurred connecting to server';
+    
+    // Handle timeout error cleanly
+    if (error.code === 'ECONNABORTED' || (error.message && error.message.toLowerCase().includes('timeout'))) {
+      message = 'The request took too long and timed out. Please try again.';
+    }
     
     // Auto-logout on 401 if token invalid (except login endpoint)
     if (error.response?.status === 401 && !error.config.url.includes('/auth/login')) {
