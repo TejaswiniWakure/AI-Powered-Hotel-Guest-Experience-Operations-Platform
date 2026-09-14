@@ -38,9 +38,9 @@ export default function ManagerOverview() {
   const kpis = dashboard?.kpis || {
     totalRequests: 0,
     openRequests: 0,
-    slaCompliance: '94%',
-    avgResolution: '22 min',
-    guestRating: 4.8
+    slaCompliance: '0%',
+    avgResolution: '0 min',
+    guestRating: 0
   };
 
   return (

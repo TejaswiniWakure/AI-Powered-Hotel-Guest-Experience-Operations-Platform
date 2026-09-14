@@ -92,11 +92,11 @@ export default function ManagerReports() {
         </Card>
         <Card className="p-5 bg-white">
           <span className="text-xs font-bold text-success uppercase tracking-wider block">SLA Adherence</span>
-          <p className="text-3xl font-bold text-success mt-1">{data?.slaAdherence || '94%'}</p>
+          <p className="text-3xl font-bold text-success mt-1">{data?.slaAdherence || '0%'}</p>
         </Card>
         <Card className="p-5 bg-white">
           <span className="text-xs font-bold text-accent uppercase tracking-wider block">Guest Rating Avg</span>
-          <p className="text-3xl font-bold text-primary mt-1">{data?.guestSatisfactionAvg || '4.8'}</p>
+          <p className="text-3xl font-bold text-primary mt-1">{data?.guestSatisfactionAvg || '0'}</p>
         </Card>
         <Card className="p-5 bg-white">
           <span className="text-xs font-bold text-text-muted uppercase tracking-wider block">Generated At</span>

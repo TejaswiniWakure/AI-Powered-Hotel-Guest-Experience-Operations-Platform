@@ -41,7 +41,7 @@ exports.getDashboard = async (req, res) => {
     const openRequests = openRequestsCount + openFoodOrdersCount;
 
     // 1. Calculate Real SLA Compliance Rate from completed tasks & requests
-    let slaComplianceRate = 100;
+    let slaComplianceRate = 0;
     let withinTarget = 0;
     let totalCompleted = 0;
 
@@ -62,7 +62,7 @@ exports.getDashboard = async (req, res) => {
     }
 
     // 2. Calculate Real Average Resolution Time in minutes
-    let avgResolutionMinutes = 20;
+    let avgResolutionMinutes = 0;
     let totalMinutes = 0;
     let count = 0;
 
@@ -89,7 +89,7 @@ exports.getDashboard = async (req, res) => {
     }
 
     // 3. Calculate True Guest Rating from Feedback collection in MongoDB
-    let guestRating = 5.0;
+    let guestRating = 0;
     const feedbackCount = feedbackItems.length;
     if (feedbackItems.length > 0) {
       const sum = feedbackItems.reduce((acc, f) => acc + (Number(f.rating) || 5), 0);
