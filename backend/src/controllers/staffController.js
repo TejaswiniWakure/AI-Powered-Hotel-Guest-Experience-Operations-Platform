@@ -55,10 +55,8 @@ exports.getTasks = async (req, res) => {
     const userId = req.user._id;
     const { status, priority, scope = 'mine' } = req.query;
 
-    const filter = { hotelId };
-    if (scope === 'mine') {
-      filter.assignedTo = userId;
-    }
+    const filter = { hotelId, assignedTo: userId };
+    
     if (status && status !== 'all') {
       filter.status = status;
     }
@@ -86,7 +84,7 @@ exports.getTasks = async (req, res) => {
 exports.getTaskById = async (req, res) => {
   try {
     const { id } = req.params;
-    const task = await Task.findOne({ _id: id, hotelId: req.user.hotelId })
+    const task = await Task.findOne({ _id: id, hotelId: req.user.hotelId, assignedTo: req.user._id })
       .populate('assignedTo', 'name email department')
       .populate('requestId');
 
@@ -106,7 +104,7 @@ exports.acceptTask = async (req, res) => {
     const { id } = req.params;
     const hotelId = req.user.hotelId;
 
-    const task = await Task.findOne({ _id: id, hotelId });
+    const task = await Task.findOne({ _id: id, hotelId, assignedTo: req.user._id });
     if (!task) return errorResponse(res, 'Task not found', 404);
 
     task.status = TASK_STATUS.ACCEPTED;
@@ -143,7 +141,7 @@ exports.startTask = async (req, res) => {
     const { id } = req.params;
     const hotelId = req.user.hotelId;
 
-    const task = await Task.findOne({ _id: id, hotelId });
+    const task = await Task.findOne({ _id: id, hotelId, assignedTo: req.user._id });
     if (!task) return errorResponse(res, 'Task not found', 404);
 
     task.status = TASK_STATUS.IN_PROGRESS;
@@ -181,7 +179,7 @@ exports.completeTask = async (req, res) => {
     const { resolutionNotes, completionPhoto } = req.body;
     const hotelId = req.user.hotelId;
 
-    const task = await Task.findOne({ _id: id, hotelId });
+    const task = await Task.findOne({ _id: id, hotelId, assignedTo: req.user._id });
     if (!task) return errorResponse(res, 'Task not found', 404);
 
     const completedAt = new Date();
@@ -240,7 +238,7 @@ exports.addNote = async (req, res) => {
     const { text } = req.body;
     if (!text) return errorResponse(res, 'Note text is required', 400);
 
-    const task = await Task.findOne({ _id: id, hotelId: req.user.hotelId });
+    const task = await Task.findOne({ _id: id, hotelId: req.user.hotelId, assignedTo: req.user._id });
     if (!task) return errorResponse(res, 'Task not found', 404);
 
     task.notes.push({
@@ -263,7 +261,7 @@ exports.escalateTask = async (req, res) => {
     const { reason = 'Requires specialized maintenance tools or supervisor approval' } = req.body;
     const hotelId = req.user.hotelId;
 
-    const task = await Task.findOne({ _id: id, hotelId });
+    const task = await Task.findOne({ _id: id, hotelId, assignedTo: req.user._id });
     if (!task) return errorResponse(res, 'Task not found', 404);
 
     task.status = TASK_STATUS.ESCALATED;

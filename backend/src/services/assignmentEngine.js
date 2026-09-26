@@ -20,29 +20,20 @@ class AssignmentEngine {
 
     let candidates = await User.find(staffQuery);
 
-    // If no candidates in specific department, search by department string or all active staff
+    // Fallback search by department string if departmentId wasn't strictly found but name was
     if (candidates.length === 0 && departmentName) {
       candidates = await User.find({
         hotelId,
         role: ROLES.STAFF,
         active: true,
-        department: new RegExp(departmentName, 'i')
-      });
-    }
-
-    // Fallback: any staff or manager if no department staff available
-    if (candidates.length === 0) {
-      candidates = await User.find({
-        hotelId,
-        role: { $in: [ROLES.STAFF, ROLES.MANAGER] },
-        active: true
+        department: new RegExp(`^${departmentName}$`, 'i') // strict name match
       });
     }
 
     if (candidates.length === 0) {
       return {
         assignedStaff: null,
-        assignmentReason: 'No active staff available. Placed in unassigned queue.'
+        assignmentReason: 'No eligible active staff available in this department. Left unassigned for manager manual assignment.'
       };
     }
 

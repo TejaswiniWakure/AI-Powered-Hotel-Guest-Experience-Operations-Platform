@@ -52,7 +52,7 @@ export default function ManagerRequests() {
   useEffect(() => {
     fetchRequests();
     // Also load available staff for reassignment
-    api.get('/admin/staff')
+    api.get('/manager/staff')
       .then(data => {
         if (Array.isArray(data)) setStaffList(data);
       })
@@ -268,9 +268,27 @@ export default function ManagerRequests() {
               className="w-full text-xs p-2.5 rounded-xl border border-border bg-white text-primary focus:outline-none focus:border-primary"
             >
               <option value="">Select active staff...</option>
-              {staffList.map(s => (
+              {staffList.filter(s => {
+                if (!s.active) return false; // Ensure they are active
+
+                // Strict department match based on department name string
+                if (reassignRequest?.department && s.department) {
+                  return s.department.toLowerCase() === reassignRequest.department.toLowerCase();
+                }
+                
+                // Fallback to departmentId check if department string is missing
+                if (reassignRequest?.departmentId && s.departmentId) {
+                  const sDeptId = typeof s.departmentId === 'object' ? s.departmentId._id : s.departmentId;
+                  const reqDeptId = typeof reassignRequest.departmentId === 'object' ? reassignRequest.departmentId._id : reassignRequest.departmentId;
+                  if (sDeptId && reqDeptId) {
+                    return sDeptId.toString() === reqDeptId.toString();
+                  }
+                }
+                
+                return false;
+              }).map(s => (
                 <option key={s._id} value={s._id}>
-                  {s.name} ({s.department || s.role}) {s.skills?.length ? `— Skills: ${s.skills.join(', ')}` : ''}
+                  {s.name} ({s.department}) {s.skills?.length ? `— Skills: ${s.skills.join(', ')}` : ''} ({s.activeTasksCount} tasks)
                 </option>
               ))}
             </select>

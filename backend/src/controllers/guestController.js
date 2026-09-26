@@ -231,7 +231,92 @@ exports.placeFoodOrder = async (req, res) => {
       timeline: [{ event: 'placed', label: 'Order placed by guest' }]
     });
 
-    return successResponse(res, order, 'Food order placed successfully', 201);
+    const description = `Food Order ${orderNo} (${items.length} items). ${notes ? 'Notes: ' + notes : ''}`;
+    const priority = PRIORITY_LEVELS.MEDIUM;
+    const slaMinutes = await SLAEngine.getSLAMinutes(hotelId, priority);
+    const slaDeadline = SLAEngine.calculateDeadline(slaMinutes);
+
+    let departmentName = 'Room Service';
+    const dept = await Department.findOne({ hotelId, name: new RegExp(departmentName, 'i') });
+    const departmentId = dept?._id;
+
+    const floor = /^\d+$/.test(roomNumber) ? parseInt(roomNumber[0], 10) : 1;
+    const assignment = await AssignmentEngine.assignStaff({
+      hotelId,
+      departmentId,
+      departmentName,
+      category: 'In-Room Dining',
+      floor,
+      priority
+    });
+
+    const request = await Request.create({
+      hotelId,
+      guestId: req.user._id,
+      roomId: req.user.roomId,
+      roomNumber,
+      location: 'Room',
+      type: 'service',
+      category: 'In-Room Dining',
+      subcategory: 'Food & Beverage',
+      description,
+      priority,
+      departmentId,
+      department: departmentName,
+      slaMinutes,
+      slaDeadline,
+      assignedTo: assignment.assignedStaff?._id || null,
+      status: assignment.assignedStaff ? REQUEST_STATUS.ASSIGNED : REQUEST_STATUS.NEW,
+      timeline: [
+        { action: 'CREATED', by: req.user.name, note: 'Guest submitted food order' },
+        ...(assignment.assignedStaff ? [{
+          action: 'ASSIGNED',
+          by: 'Smart Assignment Engine',
+          note: assignment.assignmentReason
+        }] : [])
+      ]
+    });
+
+    const task = await Task.create({
+      hotelId,
+      requestId: request._id,
+      assignedTo: assignment.assignedStaff?._id || null,
+      departmentId,
+      department: departmentName,
+      category: 'In-Room Dining',
+      priority,
+      roomNumber,
+      description,
+      assignmentReason: assignment.assignmentReason,
+      slaMinutes,
+      slaDeadline,
+      status: assignment.assignedStaff ? TASK_STATUS.ASSIGNED : TASK_STATUS.NEW
+    });
+
+    if (assignment.assignedStaff) {
+      await Notification.create({
+        hotelId,
+        userId: assignment.assignedStaff._id,
+        type: 'task_assigned',
+        title: `New Food Order: Room ${roomNumber}`,
+        message: `In-Room Dining requested in Room ${roomNumber}. SLA: ${slaMinutes}m.`,
+        requestId: request._id,
+        taskId: task._id
+      });
+      emitUserEvent(assignment.assignedStaff._id, 'notification_created', {
+        title: `New Food Order: Room ${roomNumber}`,
+        message: `In-Room Dining requested in Room ${roomNumber}`
+      });
+    }
+
+    emitHotelEvent(hotelId, 'request_created', request);
+
+    return successResponse(res, {
+      order,
+      request,
+      task,
+      assignmentReason: assignment.assignmentReason
+    }, 'Food order placed successfully', 201);
   } catch (error) {
     return errorResponse(res, error.message);
   }

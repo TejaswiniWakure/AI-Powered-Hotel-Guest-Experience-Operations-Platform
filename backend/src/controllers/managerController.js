@@ -205,6 +205,23 @@ exports.reassignRequest = async (req, res) => {
     const staffUser = await User.findOne({ _id: staffId, hotelId });
     if (!staffUser) return errorResponse(res, 'Target staff member not found', 404);
 
+    // Strict department validation
+    const reqDeptId = request.departmentId?.toString();
+    const staffDeptId = staffUser.departmentId?.toString();
+    const reqDeptName = (request.department || '').toLowerCase();
+    const staffDeptName = (staffUser.department || '').toLowerCase();
+
+    let departmentMatch = false;
+    if (reqDeptId && staffDeptId && reqDeptId === staffDeptId) {
+      departmentMatch = true;
+    } else if (reqDeptName && staffDeptName && reqDeptName === staffDeptName) {
+      departmentMatch = true;
+    }
+
+    if (!departmentMatch) {
+      return errorResponse(res, 'Cannot assign request to a staff member in a different department', 400);
+    }
+
     request.assignedTo = staffUser._id;
     request.timeline.push({
       action: 'REASSIGNED',
