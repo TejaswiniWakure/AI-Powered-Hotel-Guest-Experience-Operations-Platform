@@ -18,8 +18,8 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email || !password || !hotelCode.trim()) {
-      setError('Please enter your work email, password, and Hotel Code.');
+    if (!email || !password) {
+      setError('Please enter your work email and password.');
       return;
     }
     setError('');
@@ -69,7 +69,7 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-primary mb-1.5 uppercase tracking-wider">
-                Hotel Code *
+                Hotel Code <span className="text-text-muted font-normal normal-case">(optional for admin)</span>
               </label>
               <Input
                 type="text"
@@ -77,9 +77,8 @@ export default function Login() {
                 onChange={(e) => setHotelCode(e.target.value.toUpperCase())}
                 placeholder="e.g. SFGP / SIL814"
                 className="uppercase font-semibold tracking-wider"
-                required
               />
-              <p className="text-[11px] text-text-muted mt-1">Mandatory hotel property code to identify your workspace.</p>
+              <p className="text-[11px] text-text-muted mt-1">Staff & Managers: enter your property code. Admins can leave this blank.</p>
             </div>
 
             <div>
