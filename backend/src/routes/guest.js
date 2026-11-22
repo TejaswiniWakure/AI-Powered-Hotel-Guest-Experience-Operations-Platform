@@ -28,6 +28,7 @@ router.post('/requests/:id/feedback', guestController.submitFeedback);
 router.post('/feedback', guestController.submitGeneralFeedback);
 router.post('/concierge/chat', guestController.conciergeChat);
 router.get('/concierge/suggestions', guestController.getConciergeSuggestions);
+router.get('/concierge/faq', guestController.getConciergeFAQ);
 router.get('/notifications', guestController.getNotifications);
 
 module.exports = router;

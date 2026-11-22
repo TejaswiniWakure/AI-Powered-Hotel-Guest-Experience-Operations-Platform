@@ -257,31 +257,41 @@ function parseFAQMarkdown(markdownContent, hotelName) {
  * Get or automatically initialize the 30 FAQ questions for a hotel
  */
 async function getOrCreateHotelFAQ(hotelId, hotelName) {
+  let name = hotelName;
+  if (!name) {
+    const hotel = await Hotel.findById(hotelId);
+    name = hotel ? hotel.name : 'StayFlow Hotel';
+  }
+
   let doc = await KnowledgeDocument.findOne({ hotelId, category: 'faq' });
+  let items = doc ? parseFAQMarkdown(doc.content, name) : [];
 
-  if (!doc) {
-    let name = hotelName;
-    if (!name) {
-      const hotel = await Hotel.findById(hotelId);
-      name = hotel ? hotel.name : 'StayFlow Hotel';
-    }
-
+  // If doc doesn't exist or has fewer than 25 questions, create or upgrade to the full 30 questions
+  if (!doc || items.length < 25) {
     const defaultItems = getDefaultHotelFAQ(name);
     const markdown = buildFAQMarkdown(name, defaultItems);
     const chunks = RAGService.chunkContent(markdown);
 
-    doc = await KnowledgeDocument.create({
-      hotelId,
-      title: `${name} — Guest FAQ & Hotel Information`,
-      category: 'faq',
-      description: `Default 30-question FAQ covering dining, amenities, services, and policies for ${name}.`,
-      content: markdown,
-      chunks,
-      status: 'indexed'
-    });
+    if (!doc) {
+      doc = await KnowledgeDocument.create({
+        hotelId,
+        title: `${name} — Guest FAQ & Hotel Information`,
+        category: 'faq',
+        description: `Default 30-question FAQ covering dining, amenities, services, and policies for ${name}.`,
+        content: markdown,
+        chunks,
+        status: 'indexed'
+      });
+    } else {
+      doc.title = `${name} — Guest FAQ & Hotel Information`;
+      doc.content = markdown;
+      doc.chunks = chunks;
+      doc.status = 'indexed';
+      await doc.save();
+    }
+    items = defaultItems;
   }
 
-  const items = parseFAQMarkdown(doc.content, hotelName);
   return { doc, items };
 }
 

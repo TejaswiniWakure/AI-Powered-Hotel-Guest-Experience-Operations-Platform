@@ -598,6 +598,26 @@ exports.getConciergeSuggestions = async (req, res) => {
   }
 };
 
+// GET /api/guest/concierge/faq (Return all 30 FAQ questions & answers for this hotel)
+exports.getConciergeFAQ = async (req, res) => {
+  try {
+    const hotelId = req.user.hotelId;
+    const Hotel = require('../models/Hotel');
+    const hotel = await Hotel.findById(hotelId);
+    const hotelName = hotel?.name || 'Sabarmati';
+
+    const { getOrCreateHotelFAQ } = require('../services/faqService');
+    const { items, doc } = await getOrCreateHotelFAQ(hotelId, hotelName);
+
+    return successResponse(res, {
+      hotelName,
+      docId: doc?._id,
+      items
+    });
+  } catch (error) {
+    return errorResponse(res, error.message);
+  }
+};
 
 // POST /api/guest/concierge/chat
 exports.conciergeChat = async (req, res) => {
