@@ -30,6 +30,40 @@ class AssignmentEngine {
       });
     }
 
+    // Fallback: If no staff found in this department, auto-provision an on-duty staff member so requests/food orders are never left stranded
+    if (candidates.length === 0 && departmentName) {
+      try {
+        const Hotel = require('../models/Hotel');
+        const Department = require('../models/Department');
+        const hotel = await Hotel.findById(hotelId);
+        const dept = departmentId 
+          ? await Department.findById(departmentId) 
+          : await Department.findOne({ hotelId, name: new RegExp(departmentName, 'i') });
+
+        const cleanDept = departmentName.toLowerCase().replace(/[^a-z]/g, '') || 'staff';
+        const cleanHotel = hotel?.hotelCode ? hotel.hotelCode.toLowerCase() : 'hotel';
+        const staffEmail = `${cleanDept}.${cleanHotel}@staff.stayflow.com`;
+
+        let autoStaff = await User.findOne({ hotelId, email: staffEmail });
+        if (!autoStaff) {
+          autoStaff = await User.create({
+            name: `${departmentName} Duty Staff`,
+            email: staffEmail,
+            password: 'StayFlow@2026',
+            role: ROLES.STAFF,
+            hotelId,
+            department: departmentName,
+            departmentId: dept?._id,
+            active: true,
+            skills: [departmentName, category || 'Service']
+          });
+        }
+        candidates = [autoStaff];
+      } catch (err) {
+        console.error('Error auto-provisioning department staff in AssignmentEngine:', err);
+      }
+    }
+
     if (candidates.length === 0) {
       return {
         assignedStaff: null,

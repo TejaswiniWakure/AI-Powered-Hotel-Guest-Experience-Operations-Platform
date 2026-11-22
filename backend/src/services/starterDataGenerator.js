@@ -371,7 +371,31 @@ async function generateStarterDataForHotel(hotel) {
     const { getOrCreateHotelFAQ } = require('./faqService');
     await getOrCreateHotelFAQ(hotel._id, hotel.name);
 
-    console.log(`Starter data and In-Room Dining menu generated for hotel: ${hotel.name}`);
+    // 6. Create Starter On-Duty Staff for Departments (Housekeeping, Maintenance, Room Service, Front Desk)
+    const User = require('../models/User');
+    const existingStaff = await User.findOne({ hotelId: hotel._id, role: 'staff' });
+    if (!existingStaff) {
+      const depts = await Department.find({ hotelId: hotel._id });
+      for (const d of depts) {
+        const cleanDept = d.name.toLowerCase().replace(/[^a-z]/g, '') || 'staff';
+        const cleanHotel = hotel.hotelCode ? hotel.hotelCode.toLowerCase() : 'hotel';
+        const staffEmail = `${cleanDept}.${cleanHotel}@staff.stayflow.com`;
+
+        await User.create({
+          name: `${d.name} Staff`,
+          email: staffEmail,
+          password: 'StayFlow@2026',
+          role: 'staff',
+          hotelId: hotel._id,
+          department: d.name,
+          departmentId: d._id,
+          active: true,
+          skills: [d.name]
+        });
+      }
+    }
+
+    console.log(`Starter data, FAQ, and department staff generated for hotel: ${hotel.name}`);
   } catch (error) {
     console.error('Error generating starter data:', error);
   }
