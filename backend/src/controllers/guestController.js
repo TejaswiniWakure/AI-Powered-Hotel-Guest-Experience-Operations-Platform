@@ -564,19 +564,35 @@ exports.submitGeneralFeedback = async (req, res) => {
 // GET /api/guest/concierge/suggestions
 exports.getConciergeSuggestions = async (req, res) => {
   try {
-    const KnowledgeDocument = require('../models/KnowledgeDocument');
-    const docs = await KnowledgeDocument.find({ hotelId: req.user.hotelId, status: 'indexed' }).limit(4);
-    if (!docs || docs.length === 0) {
-      return successResponse(res, [
+    const { getOrCreateHotelFAQ } = require('../services/faqService');
+    const Hotel = require('../models/Hotel');
+    const hotel = await Hotel.findById(req.user.hotelId);
+    const { items } = await getOrCreateHotelFAQ(req.user.hotelId, hotel?.name);
+
+    if (items && items.length > 0) {
+      const preferred = [
         'What time is breakfast served?',
         'Where is the swimming pool located?',
         'How do I connect to the guest Wi-Fi?',
-        'What is the checkout policy?'
-      ]);
+        'What is the check-out time?',
+        'Is 24-hour room service available?',
+        'Is parking available at the hotel?'
+      ];
+      const matched = preferred.filter(p => 
+        items.some(i => i.question.toLowerCase().includes(p.toLowerCase().replace(/[^a-z0-9]/g, ' ').slice(0, 12).trim()))
+      );
+      if (matched.length >= 3) {
+        return successResponse(res, matched.slice(0, 5));
+      }
+      return successResponse(res, items.slice(0, 5).map(i => i.question));
     }
-    
-    const suggestions = docs.map(d => `Tell me about ${d.title.toLowerCase()}`);
-    return successResponse(res, suggestions);
+
+    return successResponse(res, [
+      'What time is breakfast served?',
+      'Where is the swimming pool located?',
+      'How do I connect to the guest Wi-Fi?',
+      'What is the check-out time?'
+    ]);
   } catch (error) {
     return errorResponse(res, error.message);
   }

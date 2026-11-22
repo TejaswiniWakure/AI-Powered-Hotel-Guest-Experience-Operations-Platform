@@ -47,6 +47,7 @@ import ManagerMenu from './pages/manager/ManagerMenu';
 import ManagerMenuForm from './pages/manager/ManagerMenuForm';
 import ManagerMenuSettings from './pages/manager/ManagerMenuSettings';
 import ManagerFoodOrders from './pages/manager/ManagerFoodOrders';
+import ManagerFAQ from './pages/manager/ManagerFAQ';
 
 // Admin Portal (Streamlined 4 Core SaaS Owner Modules)
 import AdminLayout from './components/layout/AdminLayout';
@@ -135,6 +136,8 @@ function App() {
               <Route path="offers" element={<ManagerOffers />} />
               <Route path="safety" element={<ManagerSafety />} />
               <Route path="reports" element={<ManagerReports />} />
+              <Route path="faq" element={<ManagerFAQ />} />
+              <Route path="knowledge" element={<ManagerFAQ />} />
               <Route path="notifications" element={<NotificationsPage title="Manager Command Notifications" />} />
             </Route>
 

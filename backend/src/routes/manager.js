@@ -34,6 +34,11 @@ router.get('/reports', managerController.getReports);
 router.post('/staff/invite', managerController.inviteStaff);
 router.delete('/staff/:id', managerController.removeStaff);
 
+// Concierge FAQ & Knowledge Management
+router.get('/faq', managerController.getHotelFAQ);
+router.put('/faq', managerController.updateHotelFAQ);
+router.post('/faq/reset', managerController.resetHotelFAQ);
+
 // Menu & In-Room Dining Management
 const menuController = require('../controllers/menuController');
 router.get('/menu', menuController.getManagerMenuItems);

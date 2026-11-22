@@ -367,6 +367,10 @@ async function generateStarterDataForHotel(hotel) {
       }
     }
 
+    // 5. Create Default 30-Question FAQ Knowledge Base
+    const { getOrCreateHotelFAQ } = require('./faqService');
+    await getOrCreateHotelFAQ(hotel._id, hotel.name);
+
     console.log(`Starter data and In-Room Dining menu generated for hotel: ${hotel.name}`);
   } catch (error) {
     console.error('Error generating starter data:', error);

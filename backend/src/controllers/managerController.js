@@ -779,4 +779,83 @@ exports.inviteStaff = async (req, res) => {
     return errorResponse(res, error.message);
   }
 };
-// Temporarily writing the new analytics logic
+
+// --- FAQ & AI CONCIERGE KNOWLEDGE MANAGEMENT ---
+exports.getHotelFAQ = async (req, res) => {
+  try {
+    const hotelId = req.user.hotelId;
+    const Hotel = require('../models/Hotel');
+    const hotel = await Hotel.findById(hotelId);
+    const hotelName = hotel?.name || 'StayFlow Hotel';
+
+    const { getOrCreateHotelFAQ } = require('../services/faqService');
+    const { items, doc } = await getOrCreateHotelFAQ(hotelId, hotelName);
+
+    return successResponse(res, {
+      hotelName,
+      docId: doc?._id,
+      updatedAt: doc?.updatedAt,
+      items
+    });
+  } catch (error) {
+    return errorResponse(res, error.message);
+  }
+};
+
+exports.updateHotelFAQ = async (req, res) => {
+  try {
+    const hotelId = req.user.hotelId;
+    const { items } = req.body;
+    if (!items || !Array.isArray(items)) {
+      return errorResponse(res, 'FAQ items array is required', 400);
+    }
+
+    const Hotel = require('../models/Hotel');
+    const hotel = await Hotel.findById(hotelId);
+    const hotelName = hotel?.name || 'StayFlow Hotel';
+
+    const { updateHotelFAQ } = require('../services/faqService');
+    const result = await updateHotelFAQ(hotelId, items, hotelName, req.user._id);
+
+    await logActivity({
+      hotelId,
+      userId: req.user._id,
+      userName: req.user.name,
+      role: req.user.role,
+      action: 'UPDATE_HOTEL_FAQ',
+      resource: 'KnowledgeDocument',
+      resourceId: result.doc._id,
+      metadata: { itemCount: items.length }
+    });
+
+    return successResponse(res, {
+      hotelName,
+      docId: result.doc._id,
+      updatedAt: result.doc.updatedAt,
+      items: result.items
+    }, 'Hotel Concierge FAQ successfully updated and indexed into AI assistant');
+  } catch (error) {
+    return errorResponse(res, error.message);
+  }
+};
+
+exports.resetHotelFAQ = async (req, res) => {
+  try {
+    const hotelId = req.user.hotelId;
+    const Hotel = require('../models/Hotel');
+    const hotel = await Hotel.findById(hotelId);
+    const hotelName = hotel?.name || 'StayFlow Hotel';
+
+    const { getDefaultHotelFAQ, updateHotelFAQ } = require('../services/faqService');
+    const defaultItems = getDefaultHotelFAQ(hotelName);
+    const result = await updateHotelFAQ(hotelId, defaultItems, hotelName, req.user._id);
+
+    return successResponse(res, {
+      hotelName,
+      docId: result.doc._id,
+      items: result.items
+    }, 'FAQ successfully reset to standard 30 hotel questions');
+  } catch (error) {
+    return errorResponse(res, error.message);
+  }
+};

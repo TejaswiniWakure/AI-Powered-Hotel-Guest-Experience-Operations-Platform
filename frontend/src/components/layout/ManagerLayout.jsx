@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { 
   BarChart3, Activity, ListOrdered, Users, TrendingUp, 
   Heart, Gift, ShieldAlert, FileText, LogOut, Building2, LayoutGrid,
-  ChefHat, UtensilsCrossed, Settings
+  ChefHat, UtensilsCrossed, Settings, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NotificationBell from '../shared/NotificationBell';
@@ -33,6 +33,7 @@ export default function ManagerLayout() {
     {
       title: 'INTELLIGENCE',
       items: [
+        { label: 'Concierge FAQ & AI', path: '/manager/faq', icon: BookOpen },
         { label: 'Analytics', path: '/manager/analytics', icon: BarChart3 },
         { label: 'Issue Trends', path: '/manager/trends', icon: TrendingUp }
       ]
