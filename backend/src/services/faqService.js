@@ -204,13 +204,10 @@ function getDefaultHotelFAQ(hotelName) {
 function buildFAQMarkdown(hotelName, faqItems) {
   const h = hotelName || 'Hotel';
   let md = `# ${h} — Guest FAQ & Hotel Information Directory\n\n`;
-  md += `This document contains the 30 standard hotel FAQ answers used by the AI Concierge. Hotel managers can customize each answer to reflect specific property amenities, timings, and policies.\n\n`;
 
   faqItems.forEach((item, index) => {
     const num = item.id || (index + 1);
-    md += `## Q${num}: ${item.question}\n`;
-    md += `**Category:** ${item.category || 'General'}\n\n`;
-    md += `${item.answer.trim()}\n\n`;
+    md += `## Q${num}: ${item.question}\n[Category: ${item.category || 'General'}]\n${item.answer.trim()}\n\n`;
   });
 
   return md;
@@ -230,13 +227,17 @@ function parseFAQMarkdown(markdownContent, hotelName) {
     const question = headerMatch[2].trim();
 
     let category = 'General';
-    const catMatch = sec.match(/\*\*Category:\*\*\s*(.+)/i);
+    const catMatch = sec.match(/\[Category:\s*([^\]]+)\]/i) || sec.match(/\*\*Category:\*\*\s*(.+)/i);
     if (catMatch) {
       category = catMatch[1].trim();
     }
 
     // Body answer is everything after the category or question header
-    let body = sec.replace(/## Q\d+:.+/i, '').replace(/\*\*Category:\*\*.+/i, '').trim();
+    let body = sec
+      .replace(/## Q\d+:.+/i, '')
+      .replace(/\[Category:[^\]]+\]/i, '')
+      .replace(/\*\*Category:\*\*.+/i, '')
+      .trim();
 
     items.push({
       id,
@@ -266,9 +267,13 @@ async function getOrCreateHotelFAQ(hotelId, hotelName) {
   let doc = await KnowledgeDocument.findOne({ hotelId, category: 'faq' });
   let items = doc ? parseFAQMarkdown(doc.content, name) : [];
 
-  // If doc doesn't exist or has fewer than 25 questions, create or upgrade to the full 30 questions
-  if (!doc || items.length < 25) {
-    const defaultItems = getDefaultHotelFAQ(name);
+  // Detect if chunks are broken (e.g. old chunks where category was split into its own chunk)
+  const needsRechunk = !doc || !doc.chunks || doc.chunks.length === 0 ||
+    doc.chunks.some(c => c.text && c.text.includes('Category') && c.text.length < 65);
+
+  // If doc doesn't exist, has fewer than 25 questions, or has broken chunks -> recreate/rechunk!
+  if (!doc || items.length < 25 || needsRechunk) {
+    const defaultItems = (items && items.length >= 25) ? items : getDefaultHotelFAQ(name);
     const markdown = buildFAQMarkdown(name, defaultItems);
     const chunks = RAGService.chunkContent(markdown);
 

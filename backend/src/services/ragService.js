@@ -181,8 +181,37 @@ class RAGService {
     // Strip markdown question header if the chunk starts with ## Q...
     let cleanSnippet = topChunk.snippet
       .replace(/^##\s+Q\d+:\s*[^\n]+\n+/i, '')
-      .replace(/\*\*Category:\*\*[^\n]+\n+/i, '')
+      .replace(/^\[Category:[^\]]+\]\n+/i, '')
+      .replace(/^\*\*Category:\*\*[^\n]+\n+/i, '')
+      .replace(/\*\*Category:\*\*[^\n]+/i, '')
       .trim();
+
+    // If cleanSnippet is accidentally empty or just a category label (e.g. "**Category:** Check-In & Stays"):
+    if (!cleanSnippet || /^\*?\*?category/i.test(cleanSnippet) || cleanSnippet.length < 25) {
+      try {
+        const { getOrCreateHotelFAQ } = require('./faqService');
+        const { items } = await getOrCreateHotelFAQ(hotelId, hName);
+
+        const qTokens = (question.toLowerCase().match(/\b[a-z]{3,}\b/g) || []);
+        let bestItem = null;
+        let maxMatches = 0;
+
+        items.forEach(item => {
+          const itemTokens = (item.question.toLowerCase().match(/\b[a-z]{3,}\b/g) || []);
+          const matches = qTokens.filter(t => itemTokens.includes(t)).length;
+          if (matches > maxMatches) {
+            maxMatches = matches;
+            bestItem = item;
+          }
+        });
+
+        if (bestItem && maxMatches >= 1) {
+          cleanSnippet = bestItem.answer;
+        }
+      } catch (e) {
+        // fallback to topChunk.snippet
+      }
+    }
 
     if (!cleanSnippet) cleanSnippet = topChunk.snippet;
 
