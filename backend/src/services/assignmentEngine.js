@@ -7,30 +7,34 @@ class AssignmentEngine {
    * Find and score candidate staff members for a request
    */
   static async assignStaff({ hotelId, departmentId, departmentName, category, floor = 1, priority = 'Medium' }) {
-    // Query active staff members in this hotel
-    const staffQuery = {
+    // 1. Determine flexible department matching pattern (e.g. food services, room service, dining)
+    let deptRegex;
+    if (/food|dining|room\s*service|kitchen|restaurant|beverage/i.test(departmentName || category || '')) {
+      deptRegex = /food|dining|room\s*service|kitchen|restaurant|beverage|f&b/i;
+    } else if (/housekeeping|cleaning|laundry/i.test(departmentName || category || '')) {
+      deptRegex = /housekeeping|cleaning|laundry/i;
+    } else if (/maintenance|engineering|repair|electric|plumb|ac/i.test(departmentName || category || '')) {
+      deptRegex = /maintenance|engineering|repair|electric|plumb|ac/i;
+    } else if (/front\s*desk|reception|concierge|bell/i.test(departmentName || category || '')) {
+      deptRegex = /front\s*desk|reception|concierge|bell/i;
+    } else {
+      deptRegex = new RegExp(departmentName || '', 'i');
+    }
+
+    // 2. Search candidates in this hotel matching by departmentId OR by department name
+    const orConditions = [{ department: deptRegex }];
+    if (departmentId) {
+      orConditions.push({ departmentId });
+    }
+
+    let candidates = await User.find({
       hotelId,
       role: ROLES.STAFF,
-      active: true
-    };
+      active: true,
+      $or: orConditions
+    });
 
-    if (departmentId) {
-      staffQuery.departmentId = departmentId;
-    }
-
-    let candidates = await User.find(staffQuery);
-
-    // Fallback search by department string if departmentId wasn't strictly found but name was
-    if (candidates.length === 0 && departmentName) {
-      candidates = await User.find({
-        hotelId,
-        role: ROLES.STAFF,
-        active: true,
-        department: new RegExp(`^${departmentName}$`, 'i') // strict name match
-      });
-    }
-
-    // Fallback: If no staff found in this department, auto-provision an on-duty staff member so requests/food orders are never left stranded
+    // Fallback: If absolutely no staff exist in this department in this hotel, auto-provision a duty staff member
     if (candidates.length === 0 && departmentName) {
       try {
         const Hotel = require('../models/Hotel');

@@ -55,6 +55,35 @@ exports.getTasks = async (req, res) => {
     const userId = req.user._id;
     const { status, priority, scope = 'mine' } = req.query;
 
+    // Self-healing: If an active staff member in food/room service (like Yash) fetches tasks,
+    // ensure any unassigned food tasks in this hotel are assigned to them!
+    const isFoodStaff = /food|dining|room\s*service|kitchen|restaurant|beverage/i.test(req.user.department || '');
+    if (isFoodStaff) {
+      const unassignedFoodTasks = await Task.find({
+        hotelId,
+        category: 'In-Room Dining',
+        status: { $in: [TASK_STATUS.NEW, TASK_STATUS.ASSIGNED] },
+        $or: [
+          { assignedTo: null },
+          { assignmentReason: /Duty Staff|Auto-provisioned|No eligible/i }
+        ]
+      });
+
+      for (const t of unassignedFoodTasks) {
+        t.assignedTo = userId;
+        t.status = TASK_STATUS.ASSIGNED;
+        t.assignmentReason = `Assigned to ${req.user.name} (${req.user.department || 'Food Service'})`;
+        await t.save();
+
+        if (t.requestId) {
+          await Request.findByIdAndUpdate(t.requestId, {
+            assignedTo: userId,
+            status: REQUEST_STATUS.ASSIGNED
+          });
+        }
+      }
+    }
+
     const filter = { hotelId, assignedTo: userId };
     
     if (status && status !== 'all') {
@@ -127,6 +156,25 @@ exports.acceptTask = async (req, res) => {
       );
     }
 
+    // Sync with FoodOrder if In-Room Dining
+    if (task.category === 'In-Room Dining' || /food/i.test(task.description || '')) {
+      const FoodOrder = require('../models/FoodOrder');
+      await FoodOrder.findOneAndUpdate(
+        { hotelId, roomNumber: task.roomNumber, status: 'placed' },
+        {
+          status: 'confirmed',
+          $push: {
+            timeline: {
+              status: 'confirmed',
+              at: new Date(),
+              label: `Order accepted by ${req.user.name}`
+            }
+          }
+        }
+      );
+      emitHotelEvent(hotelId, 'food_order:updated', { roomNumber: task.roomNumber, status: 'confirmed' });
+    }
+
     emitHotelEvent(hotelId, 'task_updated', task);
 
     return successResponse(res, task, 'Task accepted');
@@ -162,6 +210,25 @@ exports.startTask = async (req, res) => {
           }
         }
       );
+    }
+
+    // Sync with FoodOrder if In-Room Dining
+    if (task.category === 'In-Room Dining' || /food/i.test(task.description || '')) {
+      const FoodOrder = require('../models/FoodOrder');
+      await FoodOrder.findOneAndUpdate(
+        { hotelId, roomNumber: task.roomNumber, status: { $in: ['placed', 'confirmed', 'preparing'] } },
+        {
+          status: 'out_for_delivery',
+          $push: {
+            timeline: {
+              status: 'out_for_delivery',
+              at: new Date(),
+              label: `Out for delivery by ${req.user.name}`
+            }
+          }
+        }
+      );
+      emitHotelEvent(hotelId, 'food_order:updated', { roomNumber: task.roomNumber, status: 'out_for_delivery' });
     }
 
     emitHotelEvent(hotelId, 'task_updated', task);
@@ -210,6 +277,26 @@ exports.completeTask = async (req, res) => {
           }
         }
       );
+    }
+
+    // Sync with FoodOrder if In-Room Dining
+    if (task.category === 'In-Room Dining' || /food/i.test(task.description || '')) {
+      const FoodOrder = require('../models/FoodOrder');
+      await FoodOrder.findOneAndUpdate(
+        { hotelId, roomNumber: task.roomNumber, status: { $ne: 'delivered' } },
+        {
+          status: 'delivered',
+          $push: {
+            timeline: {
+              status: 'delivered',
+              at: completedAt,
+              label: `Delivered by ${req.user.name}`,
+              note: task.resolutionNotes
+            }
+          }
+        }
+      );
+      emitHotelEvent(hotelId, 'food_order:updated', { roomNumber: task.roomNumber, status: 'delivered' });
     }
 
     emitHotelEvent(hotelId, 'task_completed', task);
