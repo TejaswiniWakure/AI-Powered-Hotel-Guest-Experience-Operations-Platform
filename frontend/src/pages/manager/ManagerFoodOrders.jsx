@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import { getSocket } from '../../services/socket';
 
 const STATUS_TABS = ['All', 'placed', 'confirmed', 'preparing', 'out_for_delivery', 'delivered'];
 
@@ -17,6 +18,33 @@ export default function ManagerFoodOrders() {
 
   useEffect(() => {
     fetchOrders();
+
+    const socket = getSocket();
+    const handleOrderCreated = (newOrder) => {
+      setOrders(prev => {
+        if (!newOrder || !newOrder._id) return prev;
+        if (prev.some(o => o._id === newOrder._id)) return prev;
+        return [newOrder, ...prev];
+      });
+    };
+
+    const handleOrderUpdated = (updatedOrder) => {
+      if (!updatedOrder) return;
+      setOrders(prev => prev.map(o => {
+        if (o._id === updatedOrder._id || (updatedOrder.orderNo && o.orderNo === updatedOrder.orderNo)) {
+          return { ...o, ...updatedOrder };
+        }
+        return o;
+      }));
+    };
+
+    socket.on('food_order:created', handleOrderCreated);
+    socket.on('food_order:updated', handleOrderUpdated);
+
+    return () => {
+      socket.off('food_order:created', handleOrderCreated);
+      socket.off('food_order:updated', handleOrderUpdated);
+    };
   }, [selectedStatus]);
 
   const fetchOrders = async () => {
@@ -135,6 +163,18 @@ export default function ManagerFoodOrders() {
                   <span>•</span>
                   <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
+
+                {order.assignedTo ? (
+                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200/80 px-2.5 py-1 rounded-lg font-medium mt-2 w-fit">
+                    <User size={12} className="shrink-0 text-emerald-600" />
+                    <span>Assigned: <strong>{order.assignedTo.name || order.assignedTo}</strong> ({order.assignedTo.department || 'Food Services'})</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 px-2.5 py-1 rounded-lg font-medium mt-2 w-fit">
+                    <AlertCircle size={12} className="shrink-0 text-amber-600" />
+                    <span>Waiting for staff assignment</span>
+                  </div>
+                )}
               </div>
 
               {/* Items List */}

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const MenuItem = require('../models/MenuItem');
 const MenuSettings = require('../models/MenuSettings');
 const FoodOrder = require('../models/FoodOrder');
@@ -321,7 +322,7 @@ exports.placeFoodOrder = async (req, res) => {
 
     for (const rawItem of items) {
       let menuItem = null;
-      if (rawItem.menuItemId) {
+      if (rawItem.menuItemId && mongoose.isValidObjectId(rawItem.menuItemId)) {
         menuItem = await MenuItem.findOne({ _id: rawItem.menuItemId, hotelId });
       }
 
@@ -342,7 +343,7 @@ exports.placeFoodOrder = async (req, res) => {
       subtotal += itemTotal;
 
       validatedItems.push({
-        menuItemId: menuItem?._id || rawItem.menuItemId,
+        menuItemId: (rawItem.menuItemId && mongoose.isValidObjectId(rawItem.menuItemId)) ? rawItem.menuItemId : (menuItem?._id || undefined),
         name,
         quantity,
         basePrice,
@@ -361,6 +362,37 @@ exports.placeFoodOrder = async (req, res) => {
     const orderNo = `FO-${Math.floor(1000 + Math.random() * 9000)}`;
     const estDelivery = new Date(Date.now() + (settings?.defaultDeliveryMin || 30) * 60000);
 
+    const Request = require('../models/Request');
+    const Task = require('../models/Task');
+    const Department = require('../models/Department');
+    const SLAEngine = require('../services/slaEngine');
+    const AssignmentEngine = require('../services/assignmentEngine');
+    const { PRIORITY_LEVELS, TASK_STATUS, REQUEST_STATUS } = require('../config/constants');
+
+    // Find department matching food / room service / dining / kitchen
+    const dept = await Department.findOne({
+      hotelId,
+      name: { $regex: /food|dining|room\s*service|kitchen|restaurant|f&b/i }
+    });
+    const departmentId = dept?._id;
+    const departmentName = dept?.name || 'Food Services';
+
+    const priority = PRIORITY_LEVELS.MEDIUM;
+    const slaMinutes = await SLAEngine.getSLAMinutes(hotelId, priority);
+    const slaDeadline = SLAEngine.calculateDeadline(slaMinutes);
+    const floor = /^\d+$/.test(roomNumber) ? parseInt(roomNumber[0], 10) : 1;
+
+    const assignment = await AssignmentEngine.assignStaff({
+      hotelId,
+      departmentId,
+      departmentName,
+      category: 'In-Room Dining',
+      floor,
+      priority
+    });
+
+    const assignedStaffId = assignment.assignedStaff?._id || null;
+
     const order = await FoodOrder.create({
       orderNo,
       hotelId,
@@ -368,7 +400,8 @@ exports.placeFoodOrder = async (req, res) => {
       guestName,
       roomId: req.user.roomId,
       roomNumber,
-      department: 'room_service',
+      department: departmentName,
+      assignedTo: assignedStaffId,
       items: validatedItems,
       subtotal,
       tax,
@@ -389,35 +422,17 @@ exports.placeFoodOrder = async (req, res) => {
           at: new Date(),
           label: 'Order placed by guest',
           note: `Charge to Room: ₹${total}`
-        }
+        },
+        ...(assignment.assignedStaff ? [{
+          status: 'assigned',
+          at: new Date(),
+          label: `Assigned to ${assignment.assignedStaff.name} (${departmentName})`,
+          note: assignment.assignmentReason
+        }] : [])
       ]
     });
 
-    const Request = require('../models/Request');
-    const Task = require('../models/Task');
-    const Department = require('../models/Department');
-    const SLAEngine = require('../services/slaEngine');
-    const AssignmentEngine = require('../services/AssignmentEngine');
-    const { PRIORITY_LEVELS, TASK_STATUS, REQUEST_STATUS } = require('../config/constants');
-
     const description = `Food Order ${orderNo} (${validatedItems.length} items). ${orderNotes ? 'Notes: ' + orderNotes : ''}`;
-    const priority = PRIORITY_LEVELS.MEDIUM;
-    const slaMinutes = await SLAEngine.getSLAMinutes(hotelId, priority);
-    const slaDeadline = SLAEngine.calculateDeadline(slaMinutes);
-
-    let departmentName = 'Room Service';
-    const dept = await Department.findOne({ hotelId, name: new RegExp(departmentName, 'i') });
-    const departmentId = dept?._id;
-
-    const floor = /^\d+$/.test(roomNumber) ? parseInt(roomNumber[0], 10) : 1;
-    const assignment = await AssignmentEngine.assignStaff({
-      hotelId,
-      departmentId,
-      departmentName,
-      category: 'In-Room Dining',
-      floor,
-      priority
-    });
 
     const request = await Request.create({
       hotelId,
@@ -434,11 +449,11 @@ exports.placeFoodOrder = async (req, res) => {
       department: departmentName,
       slaMinutes,
       slaDeadline,
-      assignedTo: assignment.assignedStaff?._id || null,
-      status: assignment.assignedStaff ? REQUEST_STATUS.ASSIGNED : REQUEST_STATUS.NEW,
+      assignedTo: assignedStaffId,
+      status: assignedStaffId ? REQUEST_STATUS.ASSIGNED : REQUEST_STATUS.NEW,
       timeline: [
         { action: 'CREATED', by: req.user.name, note: 'Guest submitted food order' },
-        ...(assignment.assignedStaff ? [{
+        ...(assignedStaffId ? [{
           action: 'ASSIGNED',
           by: 'Smart Assignment Engine',
           note: assignment.assignmentReason
@@ -449,7 +464,7 @@ exports.placeFoodOrder = async (req, res) => {
     const task = await Task.create({
       hotelId,
       requestId: request._id,
-      assignedTo: assignment.assignedStaff?._id || null,
+      assignedTo: assignedStaffId,
       departmentId,
       department: departmentName,
       category: 'In-Room Dining',
@@ -459,7 +474,7 @@ exports.placeFoodOrder = async (req, res) => {
       assignmentReason: assignment.assignmentReason,
       slaMinutes,
       slaDeadline,
-      status: assignment.assignedStaff ? TASK_STATUS.ASSIGNED : TASK_STATUS.NEW
+      status: assignedStaffId ? TASK_STATUS.ASSIGNED : TASK_STATUS.NEW
     });
 
     if (assignment.assignedStaff) {
@@ -476,6 +491,11 @@ exports.placeFoodOrder = async (req, res) => {
         title: `New Food Order: Room ${roomNumber}`,
         message: `In-Room Dining requested in Room ${roomNumber}`
       });
+    }
+
+    // Populate assignedTo on order for response
+    if (assignedStaffId && assignment.assignedStaff) {
+      order.assignedTo = assignment.assignedStaff;
     }
 
     // Notify room service staff & managers in real time
@@ -504,8 +524,26 @@ exports.getFoodOrders = async (req, res) => {
       filter.status = status;
     }
 
+    // Self-healing: If any existing orders in this hotel are unassigned, assign to active food staff
+    const unassignedOrders = await FoodOrder.find({ hotelId, assignedTo: null });
+    if (unassignedOrders.length > 0) {
+      const User = require('../models/User');
+      const foodStaff = await User.findOne({
+        hotelId,
+        role: 'staff',
+        active: true,
+        department: { $regex: /food|dining|room\s*service|kitchen|restaurant|f&b/i }
+      });
+      if (foodStaff) {
+        await FoodOrder.updateMany(
+          { hotelId, assignedTo: null },
+          { assignedTo: foodStaff._id }
+        );
+      }
+    }
+
     const orders = await FoodOrder.find(filter)
-      .populate('assignedTo', 'name')
+      .populate('assignedTo', 'name email department')
       .sort({ createdAt: -1 });
 
     return successResponse(res, orders);
