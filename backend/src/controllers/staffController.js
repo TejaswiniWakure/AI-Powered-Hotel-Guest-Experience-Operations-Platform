@@ -14,6 +14,15 @@ exports.getDashboard = async (req, res) => {
     const hotelId = req.user.hotelId;
     const userId = req.user._id;
 
+    // Self-healing: auto-assign food tasks to food staff (e.g. Yash)
+    const isFoodStaff = /food|dining|room\s*service|kitchen|restaurant|beverage/i.test(req.user.department || '');
+    if (isFoodStaff) {
+      await Task.updateMany(
+        { hotelId, category: 'In-Room Dining', assignedTo: null },
+        { assignedTo: userId, status: TASK_STATUS.ASSIGNED }
+      );
+    }
+
     const myTasks = await Task.find({
       hotelId,
       assignedTo: userId
@@ -82,6 +91,13 @@ exports.getTasks = async (req, res) => {
           });
         }
       }
+
+      // Also ensure unassigned FoodOrders are linked to this food staff
+      const FoodOrder = require('../models/FoodOrder');
+      await FoodOrder.updateMany(
+        { hotelId, assignedTo: null },
+        { assignedTo: userId }
+      );
     }
 
     const filter = { hotelId, assignedTo: userId };

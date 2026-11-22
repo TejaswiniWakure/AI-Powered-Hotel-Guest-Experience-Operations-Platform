@@ -301,9 +301,9 @@ exports.getGuestMenu = async (req, res) => {
 // POST /api/guest/requests/food
 exports.placeFoodOrder = async (req, res) => {
   try {
-    const { items, scheduleType, scheduledAt, deliveryPreference, orderNotes } = req.body;
+    const { items, scheduleType, scheduledAt, deliveryPreference, orderNotes, roomNumber: bodyRoom } = req.body;
     const hotelId = req.user.hotelId;
-    const roomNumber = req.user.roomNumber || '312';
+    const roomNumber = bodyRoom || req.user.roomNumber || '201';
     const guestId = req.user._id;
     const guestName = req.user.name || 'Guest';
 
@@ -391,7 +391,26 @@ exports.placeFoodOrder = async (req, res) => {
       priority
     });
 
-    const assignedStaffId = assignment.assignedStaff?._id || null;
+    let assignedStaffId = assignment.assignedStaff?._id || null;
+
+    // DIRECT FALLBACK: Guarantee food staff (e.g. Yash) is assigned if present in this hotel
+    if (!assignedStaffId) {
+      const User = require('../models/User');
+      const directStaff = await User.findOne({
+        hotelId,
+        role: 'staff',
+        active: true,
+        $or: [
+          { department: { $regex: /food|dining|room\s*service|kitchen|restaurant|f&b/i } },
+          { name: /yash/i }
+        ]
+      });
+      if (directStaff) {
+        assignedStaffId = directStaff._id;
+        assignment.assignedStaff = directStaff;
+        assignment.assignmentReason = `Directly assigned to ${directStaff.name} (${directStaff.department || 'Food Services'})`;
+      }
+    }
 
     const order = await FoodOrder.create({
       orderNo,

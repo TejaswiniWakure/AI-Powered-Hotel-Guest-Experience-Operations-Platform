@@ -37,6 +37,7 @@ export default function CartPage() {
 
     try {
       const payload = {
+        roomNumber: roomNumber || '201',
         items: cartItems.map(item => ({
           menuItemId: item.menuItemId || item._id,
           name: item.name,
@@ -136,7 +137,7 @@ export default function CartPage() {
       </div>
 
       {/* Cart Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-28">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-36">
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
             {error}
@@ -347,13 +348,31 @@ export default function CartPage() {
                 <span className="text-xs font-serif font-bold text-primary">₹{total}</span>
               </div>
             </div>
+
+            {/* Direct In-Page Place Order Button */}
+            <div className="pt-2">
+              <button
+                onClick={handlePlaceOrder}
+                disabled={loading}
+                className="w-full bg-primary text-accent font-bold py-4 px-5 rounded-2xl shadow-lg hover:bg-primary-hover active:scale-[0.99] transition-all flex justify-between items-center text-xs cursor-pointer"
+              >
+                <span className="flex items-center gap-2 font-bold">
+                  <ChefHat size={16} />
+                  {loading ? 'Submitting Order to Kitchen...' : 'Place In-Room Dining Order'}
+                </span>
+                <span className="font-serif text-sm font-bold">₹{total}</span>
+              </button>
+              <p className="text-center text-[10px] text-text-muted mt-2">
+                Billed to Room {roomNumber || '201'} · Delivered in ~25–35m
+              </p>
+            </div>
           </>
         )}
       </div>
 
-      {/* Place Order Bar */}
+      {/* Place Order Sticky Bar */}
       {cartItems.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-border z-20 max-w-md mx-auto shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/95 backdrop-blur-md border-t border-border z-50 max-w-md mx-auto shadow-2xl">
           <div className="flex gap-2.5">
             <button
               onClick={() => navigate('/guest/services/room-service')}
@@ -364,10 +383,10 @@ export default function CartPage() {
             <button
               onClick={handlePlaceOrder}
               disabled={loading}
-              className="flex-1 bg-primary text-accent font-bold py-3 px-5 rounded-xl shadow-md hover:bg-primary-hover active:scale-[0.99] transition-all flex justify-between items-center text-xs"
+              className="flex-1 bg-primary text-accent font-bold py-3.5 px-5 rounded-xl shadow-md hover:bg-primary-hover active:scale-[0.99] transition-all flex justify-between items-center text-xs cursor-pointer"
             >
-              <span>{loading ? 'Submitting Order...' : 'Place Order'}</span>
-              <span className="font-serif text-sm">₹{total}</span>
+              <span className="font-bold">{loading ? 'Submitting Order...' : 'Place Order'}</span>
+              <span className="font-serif text-sm font-bold">₹{total}</span>
             </button>
           </div>
         </div>

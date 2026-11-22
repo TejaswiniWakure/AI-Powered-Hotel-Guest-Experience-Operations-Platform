@@ -23,9 +23,10 @@ export default function GuestLayout() {
   ];
 
   const availableRooms = ['101', '102', '201', '204', '305', '308', '312', '401', '501'];
+  const isCartPage = location.pathname.includes('/cart');
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-20 md:pb-0">
+    <div className={`min-h-screen bg-background flex flex-col ${isCartPage ? 'pb-0' : 'pb-20 md:pb-0'}`}>
       {/* Top Header */}
       <header className="sticky top-0 z-30 bg-primary text-white border-b border-white/10 shadow-sm">
         <div className="max-w-xl mx-auto px-4 h-16 flex items-center justify-between">
@@ -91,37 +92,39 @@ export default function GuestLayout() {
         <Outlet />
       </main>
 
-      {/* Bottom Navigation for Mobile / Guest Experience */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-border shadow-lg">
-        <div className="max-w-xl mx-auto flex items-center justify-around h-16 px-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                end={item.end}
-                className={({ isActive }) =>
-                  `flex flex-col items-center justify-center w-14 py-1 rounded-xl transition-all ${
-                    isActive
-                      ? 'text-primary font-bold'
-                      : 'text-text-muted hover:text-primary font-medium'
-                  }`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <div className={`p-1 rounded-lg ${isActive ? 'bg-accent/20 text-primary' : ''}`}>
-                      <Icon size={20} className={isActive ? 'text-primary' : 'text-text-muted'} />
-                    </div>
-                    <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
-                  </>
-                )}
-              </NavLink>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Bottom Navigation for Mobile / Guest Experience - hidden on Cart page */}
+      {!isCartPage && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-border shadow-lg">
+          <div className="max-w-xl mx-auto flex items-center justify-around h-16 px-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    `flex flex-col items-center justify-center w-14 py-1 rounded-xl transition-all ${
+                      isActive
+                        ? 'text-primary font-bold'
+                        : 'text-text-muted hover:text-primary font-medium'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <div className={`p-1 rounded-lg ${isActive ? 'bg-accent/20 text-primary' : ''}`}>
+                        <Icon size={20} className={isActive ? 'text-primary' : 'text-text-muted'} />
+                      </div>
+                      <span className="text-[10px] mt-0.5 tracking-tight">{item.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
