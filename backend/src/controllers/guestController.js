@@ -609,12 +609,13 @@ exports.conciergeChat = async (req, res) => {
     if (!message) return errorResponse(res, 'Message is required', 400);
 
     const hotel = await Hotel.findById(hotelId);
+    const hotelName = hotel?.name || 'Sabarmati';
     const answerData = await RAGService.answerConcierge({
       hotelId,
       question: message,
-      guestName: req.user.name,
+      guestName: req.user.name || 'Guest',
       roomNumber,
-      hotelName: hotel.name
+      hotelName
     });
 
     // Record message into conversation

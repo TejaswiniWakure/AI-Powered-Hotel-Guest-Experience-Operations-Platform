@@ -127,6 +127,16 @@ class RAGService {
    * Concierge Assistant: Answers guest questions using hotel knowledge
    */
   static async answerConcierge({ hotelId, question, guestName, roomNumber, hotelName }) {
+    const hName = hotelName || 'the hotel';
+
+    // Ensure the hotel has all 30 default FAQ questions indexed
+    try {
+      const { getOrCreateHotelFAQ } = require('./faqService');
+      await getOrCreateHotelFAQ(hotelId, hName);
+    } catch (e) {
+      // Continue even if FAQ check throws
+    }
+
     const relevantChunks = await this.searchHotelKnowledge({
       hotelId,
       query: question,
@@ -134,21 +144,27 @@ class RAGService {
       limit: 2
     });
 
-    const firstName = guestName.split(' ')[0] || 'Guest';
-
     if (relevantChunks.length === 0) {
       // Mock LLM Fallbacks for common hotel queries
       const q = question.toLowerCase();
-      let fallbackText = "I don't have that specific information in my knowledge base. Please contact the front desk at extension 0 or visit the reception for assistance.";
+      let fallbackText = `I don't have that specific information in my knowledge base. Please contact the front desk at extension 0 or visit the reception for assistance.`;
       
-      if (/breakfast|food|menu/.test(q)) {
-        fallbackText = `We serve breakfast daily. You can also order In-Room Dining directly from the "Services" tab in this app. Let me know if you need help navigating there!`;
-      } else if (/pool|swim|gym|fitness/.test(q)) {
-        fallbackText = `Our wellness facilities are typically open from 6:00 AM to 10:00 PM. Please check the hotel directory or ask the front desk for exact timings.`;
-      } else if (/wifi|internet|network/.test(q)) {
-        fallbackText = `The Wi-Fi network is usually named after the hotel. If you're having trouble connecting, you can submit a Maintenance issue through the "Report" tab.`;
-      } else if (/checkout|check-out|time/.test(q)) {
-        fallbackText = `Standard checkout time is usually 11:00 AM or 12:00 PM. If you need a late checkout, you can request one in the "Services" tab under Front Desk.`;
+      if (/breakfast|food|dining|lunch|dinner/.test(q)) {
+        fallbackText = `Breakfast at ${hName} is served daily from 7:00 AM to 10:30 AM at the main dining area. You can also order In-Room Dining directly from the "Services" tab in this app!`;
+      } else if (/pool|swim/.test(q)) {
+        fallbackText = `The swimming pool at ${hName} is open daily from 6:00 AM to 10:00 PM. Clean towels and lounger chairs are provided poolside.`;
+      } else if (/gym|fitness|workout/.test(q)) {
+        fallbackText = `The fitness center at ${hName} is open daily from 6:00 AM to 10:00 PM with cardio and strength equipment.`;
+      } else if (/spa|massage/.test(q)) {
+        fallbackText = `Wellness and massage therapies are offered at the spa. Appointments can be scheduled through the Front Desk.`;
+      } else if (/wifi|wi-fi|internet|network|password/.test(q)) {
+        fallbackText = `To connect to guest Wi-Fi at ${hName}, select the "${hName.replace(/\s+/g, '_')}_Guest" network and enter your room number and last name. Wi-Fi is completely complimentary!`;
+      } else if (/checkout|check-out|checkin|check-in|time/.test(q)) {
+        fallbackText = `Standard check-in time at ${hName} is 2:00 PM and check-out is 11:00 AM. Late check-out can be requested through the "Services" tab under Front Desk.`;
+      } else if (/park|valet|car/.test(q)) {
+        fallbackText = `Complimentary secure on-site parking with valet service is available for all guests at ${hName}.`;
+      } else if (/towel|pillow|water|clean|housekeeping/.test(q)) {
+        fallbackText = `You can request extra towels, pillows, drinking water, or room cleaning directly from the "Services" tab in this app!`;
       }
 
       return {
@@ -162,8 +178,16 @@ class RAGService {
     const topChunk = relevantChunks[0];
     const sourceInfo = `${topChunk.docTitle} (${topChunk.category.toUpperCase()})`;
 
+    // Strip markdown question header if the chunk starts with ## Q...
+    let cleanSnippet = topChunk.snippet
+      .replace(/^##\s+Q\d+:\s*[^\n]+\n+/i, '')
+      .replace(/\*\*Category:\*\*[^\n]+\n+/i, '')
+      .trim();
+
+    if (!cleanSnippet) cleanSnippet = topChunk.snippet;
+
     return {
-      answer: `Here is what I found for ${hotelName}: ${topChunk.snippet}`,
+      answer: cleanSnippet,
       sources: relevantChunks.map(c => ({
         title: c.docTitle,
         category: c.category,
