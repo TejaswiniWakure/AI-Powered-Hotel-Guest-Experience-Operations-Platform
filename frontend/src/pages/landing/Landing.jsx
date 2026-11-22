@@ -10,6 +10,7 @@ import {
   TrendingUp, Activity, 
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import SiteGuideBot from '../../components/shared/SiteGuideBot';
 
 export default function Landing() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -441,6 +442,9 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Floating AI Site Guide Widget */}
+      <SiteGuideBot />
     </div>
   );
 }
